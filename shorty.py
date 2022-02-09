@@ -1,10 +1,13 @@
+#!/usr/bin/env python3
+
+#? Imports
+
 import logging
 import os
 import platform
 from asyncio import sleep as _sleep
 from datetime import datetime
 from traceback import format_exc
-
 import aiohttp
 import discord
 import psutil
@@ -15,9 +18,15 @@ from discord import Embed
 from discord.ext import commands
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+
+#? Uncomment If You Are Not Running On Heroku
+#? If You Are On Heroku Add The Environment Variables From Heroku Config Vars
+
 # from dotenv import load_dotenv
 
 # load_dotenv
+
+#? Initiate Sentry
 
 sentry_sdk.init(
     os.getenv("SENTRY_URL"),
@@ -26,6 +35,7 @@ sentry_sdk.init(
     sample_rate=0.25,
 )
 
+#? Shorten The Output Of Bytes
 
 def get_size(bytes, suffix="B"):
     """
@@ -40,6 +50,8 @@ def get_size(bytes, suffix="B"):
             return f"{bytes:.2f}{unit}{suffix}"
         bytes /= factor
 
+
+#? Shortener Creator Class
 
 class shortners:
     def __init__(self):
@@ -64,45 +76,47 @@ class shortners:
         )
 
 
-# Initiate Bot
+#? Initiate Bot
 bot = commands.Bot(
     command_prefix=commands.when_mentioned_or(os.getenv("BOT_PREFIX")),
     help_command=None,
 )
 
-# Initiate Jishaku
+#? Initiate Jishaku
 bot.load_extension("jishaku")
 
-# Initate URLValidator
+#? Initate URLValidator
 urlvalidator = URLValidator()
 
-# Initiate Shorteners
+#? Initiate Shorteners
 shortner = shortners()
 
-# Initiate Statcord
+#? Initiate Statcord
 statcord_key = os.getenv("STATCORD_KEY")
 api = statcord.Client(bot, statcord_key)
 api.start_loop()
 
-# Initiate Logger
+#? Initiate Logger
 logger = logging.getLogger(__name__)
 
-# Create handlers
+#? Create handlers
 c_handler = logging.StreamHandler()
 f_handler = logging.FileHandler(os.getenv("LOG_FILE"))
 c_handler.setLevel(logging.WARNING)
 f_handler.setLevel(logging.ERROR)
 
-# Create formatters and add it to handlers
+#? Create formatters and add it to handlers
 c_format = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
 f_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 c_handler.setFormatter(c_format)
 f_handler.setFormatter(f_format)
 
-# Add handlers to the logger
+#? Add handlers to the logger
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
+
+#? Error Handler
 
 @bot.event
 async def on_command_error(ctx: commands.Context, error: commands.CommandError):
@@ -124,6 +138,8 @@ async def on_command_error(ctx: commands.Context, error: commands.CommandError):
     await ctx.send(message, delete_after=5)
     await ctx.message.delete(delay=5)
 
+
+#? Discord.py Ready Event
 
 @bot.event
 async def on_ready():
@@ -183,6 +199,8 @@ async def on_ready():
     logger.warning("We have logged in as {0.user}".format(bot))
 
 
+#? Discord.py Guild Join Event
+
 @bot.event
 async def on_guild_join(guild):
     await bot.change_presence(
@@ -192,6 +210,8 @@ async def on_guild_join(guild):
         )
     )
 
+
+#? Discord.py Guild Remove Event
 
 @bot.event
 async def on_guild_remove(guild):
@@ -203,10 +223,14 @@ async def on_guild_remove(guild):
     )
 
 
+#? Discord.py on_command Event For Statcord.py
+
 @bot.event
 async def on_command(ctx):
     api.command_run(ctx)
 
+
+#? Adfly Command
 
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
@@ -221,6 +245,8 @@ async def adfly(ctx, link):
         await ctx.send("Please Input A Valid Link!")
 
 
+#? Nullpointer Command
+
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
 async def nullpointer(ctx, link):
@@ -233,6 +259,8 @@ async def nullpointer(ctx, link):
     except ValidationError:
         await ctx.send("Please Input A Valid Link!")
 
+
+#? Isgd Command
 
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
@@ -247,6 +275,8 @@ async def isgd(ctx, link):
         await ctx.send("Please Input A Valid Link!")
 
 
+#? Bitly Command
+
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
 async def bitly(ctx, link):
@@ -259,6 +289,8 @@ async def bitly(ctx, link):
     except ValidationError:
         await ctx.send("Please Input A Valid Link!")
 
+
+#? Chilpit Command
 
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
@@ -273,6 +305,8 @@ async def chilpit(ctx, link):
         await ctx.send("Please Input A Valid Link!")
 
 
+#? Clckru Command
+
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
 async def clckru(ctx, link):
@@ -285,6 +319,8 @@ async def clckru(ctx, link):
     except ValidationError:
         await ctx.send("Please Input A Valid Link!")
 
+
+#? Cuttly Command
 
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
@@ -299,6 +335,8 @@ async def cuttly(ctx, link):
         await ctx.send("Please Input A Valid Link!")
 
 
+#? Dagd Command
+
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
 async def dagd(ctx, link):
@@ -311,6 +349,8 @@ async def dagd(ctx, link):
     except ValidationError:
         await ctx.send("Please Input A Valid Link!")
 
+
+#? Osdb Command
 
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
@@ -325,6 +365,8 @@ async def osdb(ctx, link):
         await ctx.send("Please Input A Valid Link!")
 
 
+#? Shortcm Command
+
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
 async def shortcm(ctx, link):
@@ -338,6 +380,8 @@ async def shortcm(ctx, link):
         await ctx.send("Please Input A Valid Link!")
 
 
+#? Tinyurl Command
+
 @commands.cooldown(2, 30, commands.BucketType.user)
 @bot.command()
 async def tinyurl(ctx, link):
@@ -350,6 +394,8 @@ async def tinyurl(ctx, link):
     except ValidationError:
         await ctx.send("Please Input A Valid Link!")
 
+
+#? Donate Command
 
 @bot.command()
 async def donate(ctx):
@@ -370,6 +416,8 @@ async def donate(ctx):
     await ctx.send(embed=embed)
 
 
+#? Invite Command
+
 @bot.command()
 async def invite(ctx):
     embed = Embed(
@@ -379,6 +427,20 @@ async def invite(ctx):
     ).set_footer(text="Requested By " + ctx.author.name)
     await ctx.send(embed=embed)
 
+
+#? Source Command
+
+@bot.command()
+async def source(ctx):
+    embed = Embed(
+        title="Source Code Of The Bot",
+        description="[Github](https://github.com/rjdj0261/Shorty)",
+        color=0x0055FF,
+    ).set_footer(text="Requested By " + ctx.author.name)
+    await ctx.send(embed=embed)
+
+
+#? Support Command
 
 @bot.command()
 async def support(ctx):
@@ -390,6 +452,8 @@ async def support(ctx):
     await ctx.send(embed=embed)
 
 
+#? Ping Command
+
 @bot.command()
 async def ping(ctx):
     embed = (
@@ -400,6 +464,8 @@ async def ping(ctx):
     await ctx.send(embed=embed)
 
 
+#? Help Command
+
 @bot.command()
 async def help(ctx):
     embed = Embed(
@@ -407,12 +473,18 @@ async def help(ctx):
         description="Every Command Has A Cooldown of 30 seconds!",
         color=0x0055FF,
     )
-    embed.add_field(name="adfly", value="Shorten Your Link Using Adfly.", inline=False)
+    embed.add_field(
+        name="adfly", value="Shorten Your Link Using Adfly.", inline=False
+    )
     embed.add_field(
         name="nullpointer", value="Shorten Your Link Using Nullpointer.", inline=False
     )
-    embed.add_field(name="isgd", value="Shorten Your Link Using Isgd.", inline=False)
-    embed.add_field(name="bitly", value="Shorten Your Link Using Bitly.", inline=False)
+    embed.add_field(
+        name="isgd", value="Shorten Your Link Using Isgd.", inline=False
+    )
+    embed.add_field(
+        name="bitly", value="Shorten Your Link Using Bitly.", inline=False
+    )
     embed.add_field(
         name="chilpit", value="Shorten Your Link Using Chilpit.", inline=False
     )
@@ -422,8 +494,12 @@ async def help(ctx):
     embed.add_field(
         name="cuttly", value="Shorten Your Link Using Cuttly.", inline=False
     )
-    embed.add_field(name="dagd", value="Shorten Your Link Using Dagd.", inline=False)
-    embed.add_field(name="osdb", value="Shorten Your Link Using Osdb.", inline=False)
+    embed.add_field(
+        name="dagd", value="Shorten Your Link Using Dagd.", inline=False
+    )
+    embed.add_field(
+        name="osdb", value="Shorten Your Link Using Osdb.", inline=False
+    )
     embed.add_field(
         name="shortcm", value="Shorten Your Link Using Shortcm.", inline=False
     )
@@ -433,14 +509,26 @@ async def help(ctx):
     embed.add_field(
         name="donate", value="Donate The Developer Of The Bot", inline=False
     )
-    embed.add_field(name="invite", value="Invite The Bot To Your Server", inline=False)
+    embed.add_field(
+        name="invite", value="Invite The Bot To Your Server", inline=False
+    )
     embed.add_field(
         name="support", value="Join The Support Server Of The Bot", inline=False
     )
-    embed.add_field(name="ping", value="Ping Of The Bot", inline=False)
-    embed.set_footer(text="Requested By " + ctx.author.name)
+    embed.add_field(
+        name="ping", value="Ping Of The Bot", inline=False
+    )
+    embed.add_field(
+        name="source", value="Source Code Of The Bot", inline=False
+    )
+    embed.set_footer(
+        text="Requested By " + ctx.author.name
+    )
+    
     await ctx.send(embed=embed)
 
+
+#? Eval Command (Owner Only)
 
 @bot.command(name="eval", hidden=True)
 @commands.is_owner()
@@ -470,6 +558,8 @@ async def eval_(ctx: commands.Context, *, code: str):
         )
 
 
+#? Eval Error Handler
+
 @eval_.error
 async def eval__error(ctx, error):
     await ctx.send(
@@ -481,6 +571,8 @@ async def eval__error(ctx, error):
         )
     )
 
+
+#? Selfpurge Command (Owner Only)
 
 @bot.command(hidden=True)
 @commands.is_owner()
@@ -503,6 +595,8 @@ async def selfpurge(ctx, amount=2):
     await ctx.message.delete()
 
 
+#? Avatar Command (Owner Only)
+
 @bot.command(hidden=True)
 @commands.is_owner()
 async def avatar(ctx, avatar_url):
@@ -512,6 +606,8 @@ async def avatar(ctx, avatar_url):
             await bot.user.edit(avatar=new_avatar)
             await ctx.send("Avatar changed!")
 
+
+#? Guildlist Command (Owner Only)
 
 @bot.command(hidden=True)
 @commands.is_owner()
@@ -527,5 +623,7 @@ async def guildlist(ctx):
 
     await ctx.send(file=discord.File("guildlist.csv"))
 
+
+#? Start Bot
 
 bot.run(os.getenv("BOT_TOKEN"))

@@ -1,3 +1,4 @@
+# To Ignore Important API Authorisation Keys
 .env
 bot.log
 try.py
