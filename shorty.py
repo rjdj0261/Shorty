@@ -15,9 +15,9 @@ from discord import Embed
 from discord.ext import commands
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
-load_dotenv()
+# load_dotenv
 
 sentry_sdk.init(
     os.getenv("SENTRY_URL"),
