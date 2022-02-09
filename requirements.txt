@@ -4,4 +4,4 @@ statcord.py
 sentry_sdk
 django
 jishaku
-python-dotenv
+python - dotenv
