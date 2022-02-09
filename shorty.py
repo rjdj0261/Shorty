@@ -13,11 +13,13 @@ from discord import Embed
 from asyncio import sleep as _sleep
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
-sentry_sdk.init(
-    "YOUR_SENTRY_URL",
-    traces_sample_rate=1.0, release="shorty@1.0.0", sample_rate=0.25)
+sentry_sdk.init(os.getenv('SENTRY_URL'),
+                traces_sample_rate=1.0, release="shorty@1.0.0", sample_rate=0.25)
 
 
 def get_size(bytes, suffix="B"):
@@ -36,22 +38,27 @@ def get_size(bytes, suffix="B"):
 
 class shortners():
     def __init__(self):
+        self.isgd = pyshorteners.Shortener().isgd
+        self.nullpointer = pyshorteners.Shortener(
+            domain='https://0x0.st').nullpointer
         self.bitly = pyshorteners.Shortener(
-            api_key="YOUR_API_KEY").bitly
+            api_key=os.getenv('BITLY_API_KEY')).bitly
         self.chilpit = pyshorteners.Shortener().chilpit
         self.clckru = pyshorteners.Shortener().clckru
         self.cuttly = pyshorteners.Shortener(
-            api_key="YOUR_API_KEY").cuttly
+            api_key=os.getenv('CUTTLY_API_KEY')).cuttly
         self.dagd = pyshorteners.Shortener().dagd
         self.osdb = pyshorteners.Shortener().osdb
         self.shortcm = pyshorteners.Shortener(
-            api_key="YOUR_API_KEY", domain="3adu.short.gy").shortcm
+            api_key=os.getenv('SHORTCM_API_KEY'), domain="3adu.short.gy").shortcm
         self.tinyurl = pyshorteners.Shortener().tinyurl
+        self.adfly = pyshorteners.Shortener(
+            api_key=os.getenv('ADFLY_API_KEY'), user_id=os.getenv('ADFLY_USER_ID'), domain='test.us', group_id=12, type='int')
 
 
 # Initiate Bot
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or("?"), help_command=None)
+    command_prefix=commands.when_mentioned_or(os.getenv('BOT_PREFIX')), help_command=None)
 
 # Initiate Jishaku
 bot.load_extension('jishaku')
@@ -63,7 +70,7 @@ urlvalidator = URLValidator()
 shortner = shortners()
 
 # Initiate Statcord
-statcord_key = "YOUR_API_KEY"
+statcord_key = os.getenv('STATCORD_KEY')
 api = statcord.Client(bot, statcord_key)
 api.start_loop()
 
@@ -72,7 +79,7 @@ logger = logging.getLogger(__name__)
 
 # Create handlers
 c_handler = logging.StreamHandler()
-f_handler = logging.FileHandler('bot.log')
+f_handler = logging.FileHandler(os.getenv("LOG_FILE"))
 c_handler.setLevel(logging.WARNING)
 f_handler.setLevel(logging.ERROR)
 
@@ -102,7 +109,7 @@ async def on_command_error(ctx: commands.Context, error: commands.CommandError):
         return
     else:
         message = "Oh no! Something went wrong while running the command!"
-        await bot.get_channel(940164006998589470).send(error)
+        await bot.get_channel(os.getenv('ERROR_CHANNEL')).send(error)
         logger.error(error)
 
     await ctx.send(message, delete_after=5)
@@ -174,6 +181,42 @@ async def on_guild_remove(guild):
 @bot.event
 async def on_command(ctx):
     api.command_run(ctx)
+
+
+@commands.cooldown(2, 30, commands.BucketType.user)
+@bot.command()
+async def adfly(ctx, link):
+    try:
+        urlvalidator(link)
+        embed = Embed(title=shortner.adfly.short(
+            link), color=0x0055ff).set_footer(text="Requested By " + ctx.author.name)
+        await ctx.send(embed=embed)
+    except ValidationError:
+        await ctx.send("Please Input A Valid Link!")
+
+
+@commands.cooldown(2, 30, commands.BucketType.user)
+@bot.command()
+async def nullpointer(ctx, link):
+    try:
+        urlvalidator(link)
+        embed = Embed(title=shortner.nullpointer.short(
+            link), color=0x0055ff).set_footer(text="Requested By " + ctx.author.name)
+        await ctx.send(embed=embed)
+    except ValidationError:
+        await ctx.send("Please Input A Valid Link!")
+
+
+@commands.cooldown(2, 30, commands.BucketType.user)
+@bot.command()
+async def isgd(ctx, link):
+    try:
+        urlvalidator(link)
+        embed = Embed(title=shortner.isgd.short(
+            link), color=0x0055ff).set_footer(text="Requested By " + ctx.author.name)
+        await ctx.send(embed=embed)
+    except ValidationError:
+        await ctx.send("Please Input A Valid Link!")
 
 
 @commands.cooldown(2, 30, commands.BucketType.user)
@@ -279,25 +322,25 @@ async def donate(ctx):
     embed.set_thumbnail(
         url="https://www.goodwillaz.org/wordpress/wp-content/uploads/2018/04/5-15-1.jpg")
     embed.add_field(
-        name="Bitcoin", value="bc1q0zrhcrk70jtccyaphxx79p92pkdpwa5jagylk6", inline=False)
+        name="Bitcoin", value=os.getenv("BITCOIN_WALLET_ADDRESS"), inline=False)
     embed.add_field(
-        name="Paypal", value="https://paypal.me/rjdj0261", inline=False)
+        name="Paypal", value=os.getenv('PAYPAL_LINK'), inline=False)
     embed.add_field(
-        name="UPI", value="unknowncoder0261@okhdfcbank", inline=False)
+        name="UPI", value=os.getenv('UPI'), inline=False)
     embed.set_footer(text="Requested by " + ctx.author.name)
     await ctx.send(embed=embed)
 
 
 @bot.command()
 async def invite(ctx):
-    embed = Embed(title="Invite The Bot", description="[https://dsc.gg/shorty](https://dsc.gg/shorty)",
+    embed = Embed(title="Invite The Bot", description=f"[{os.getenv('BOT_INVITE')}]({os.getenv('BOT_INVITE')})",
                   color=0x0055ff).set_footer(text="Requested By " + ctx.author.name)
     await ctx.send(embed=embed)
 
 
 @bot.command()
 async def support(ctx):
-    embed = Embed(title="Join The Support Server", description="[https://dsc.gg/shorty-support](https://dsc.gg/shorty-support)",
+    embed = Embed(title="Join The Support Server", description=f'[{os.getenv("SUPPORT_SERVER_LINK")}]({os.getenv("SUPPORT_SERVER_LINK")})',
                   color=0x0055ff).set_footer(text="Requested By " + ctx.author.name)
     await ctx.send(embed=embed)
 
@@ -313,6 +356,12 @@ async def ping(ctx):
 async def help(ctx):
     embed = Embed(title="List Of Commands",
                   description="Every Command Has A Cooldown of 30 seconds!", color=0x0055ff)
+    embed.add_field(
+        name="adfly", value="Shorten Your Link Using Adfly.", inline=False)
+    embed.add_field(
+        name="nullpointer", value="Shorten Your Link Using Nullpointer.", inline=False)
+    embed.add_field(
+        name="isgd", value="Shorten Your Link Using Isgd.", inline=False)
     embed.add_field(
         name="bitly", value="Shorten Your Link Using Bitly.", inline=False)
     embed.add_field(
@@ -408,4 +457,4 @@ async def guildlist(ctx):
     await ctx.send(file=discord.File('guildlist.csv'))
 
 
-bot.run('YOUR_BOT_TOKEN')
+bot.run(os.getenv("BOT_TOKEN"))
