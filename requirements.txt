@@ -1,0 +1,6 @@
+discord.py
+pyshorteners
+statcord.py
+sentry_sdk
+django
+jishaku
