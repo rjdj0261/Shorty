@@ -32,7 +32,7 @@ sentry_sdk.init(
     os.getenv("SENTRY_URL"),
     traces_sample_rate=1.0,
     release="shorty@1.0.0",
-    sample_rate=0.25,
+    sample_rate=0.25
 )
 
 #? Shorten The Output Of Bytes
