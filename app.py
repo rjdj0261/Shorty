@@ -4,6 +4,7 @@ import logging
 import flask
 import sentry_sdk
 import os
+from waitress import serve
 
 load_dotenv()
 
@@ -32,3 +33,6 @@ def main():
 @app.route('/favicon.ico')
 def fav():
     return flask.send_from_directory("./docs/website_files", "open-graph.ico")
+
+def create_app():
+    return app
