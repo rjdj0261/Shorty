@@ -4,7 +4,6 @@ import logging
 import flask
 import sentry_sdk
 import os
-from waitress import serve
 
 load_dotenv()
 
