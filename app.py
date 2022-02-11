@@ -32,7 +32,7 @@ def main():
 
 @app.route('/favicon.ico')
 def fav():
-    return flask.send_from_directory("./docs/website_files", "open-graph.ico")
+    return flask.send_from_directory(os.getcwd() + "/docs/website_files", "open-graph.ico")
 
 if __name__ == "__main__":
     application.run(host='0.0.0.0', port=os.getenv("PORT"), debug=True)
