@@ -7,10 +7,6 @@ import os
 
 load_dotenv()
 
-import sys
-from os.path import abspath, dirname
-sys.path.insert(0, dirname(dirname(abspath(__file__))))
-
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_URL"),
     traces_sample_rate=0.2,
@@ -36,3 +32,5 @@ def main():
 @app.route('/favicon.ico')
 def fav():
     return flask.send_from_directory("./docs/website_files", "open-graph.ico")
+
+app.run(host='0.0.0.0', port=os.getenv("PORT"))
