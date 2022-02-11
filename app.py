@@ -4,7 +4,6 @@ import logging
 import flask
 import sentry_sdk
 import os
-from run import app as application
 
 load_dotenv()
 
