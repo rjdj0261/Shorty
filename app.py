@@ -4,6 +4,7 @@ import logging
 import flask
 import sentry_sdk
 import os
+from run import app as application
 
 load_dotenv()
 
@@ -18,10 +19,10 @@ data = file1.read()
 file1.close()
 
 app = Flask(__name__, static_url_path="/website_files",
-            static_folder='D:\Programming\Shorty\docs\website_files')
-log = logging.getLogger('werkzeug')
-log.disabled = True
-app.logger.disabled = True
+            static_folder=(os.getcwd() + '/docs/website_files'))
+# log = logging.getLogger('werkzeug')
+# log.disabled = True
+# app.logger.disabled = True
 
 
 @app.route('/')
@@ -33,4 +34,5 @@ def main():
 def fav():
     return flask.send_from_directory("./docs/website_files", "open-graph.ico")
 
-app.run(host='0.0.0.0', port=os.getenv("PORT"))
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=os.getenv("PORT"), debug=True)
