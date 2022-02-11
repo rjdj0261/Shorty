@@ -1,2 +1,2 @@
-web: gunicorn --bind 0.0.0.0:${PORT} app
+web: flask run
 worker: python shorty.py
