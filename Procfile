@@ -1,2 +1,2 @@
-web: waitress-serve --port=5000 --call app:create_app
+web: flask run
 worker: python shorty.py
