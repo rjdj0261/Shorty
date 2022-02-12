@@ -1,2 +1,2 @@
-web: flask run
-worker: python shorty.py
+web:flask run
+worker:python shorty.py
