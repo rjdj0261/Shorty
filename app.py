@@ -28,9 +28,9 @@ application.config["CACHE_TYPE"]="simple"
 def main():
     return data
 
-@application.route('/favicon.ico')
-def fav():
-    return flask.send_from_directory(os.getcwd() + "/docs/website_files", "open-graph.ico")
+# @application.route('/favicon.ico')
+# def fav():
+#     return flask.send_from_directory(os.getcwd() + "/docs/website_files", "open-graph.ico")
 
 if __name__ == "__main__":
     application.run(port=5000, host='0.0.0.0')
