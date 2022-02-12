@@ -1,11 +1,12 @@
 from flask import Flask
-from dotenv import load_dotenv
+import random
 import logging
 import flask
 import sentry_sdk
 import os
 
-load_dotenv()
+# import the flask extension
+from flask.ext.cache import Cache
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_URL"),
@@ -23,15 +24,21 @@ app = Flask(__name__, static_url_path="/website_files",
 # log.disabled = True
 # app.logger.disabled = True
 
+#import config setting
+app.config["CACHE_TYPE"]="memcached"
 
-@app.route('/')
+# register the cache instance and binds it on to your app 
+app.cache = Cache(app)
+
+@app.route("/")
+@app.cache.cached(timeout=50,key_prefix="hello")  # cache this view for 30 seconds
 def main():
     return data
 
-
 @app.route('/favicon.ico')
+@app.cache.cached(timeout=50,key_prefix="hello")
 def fav():
     return flask.send_from_directory(os.getcwd() + "/docs/website_files", "open-graph.ico")
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=os.getenv("PORT"), debug=True)
+    app.run(port=5000, debug=True, host='0.0.0.0')
