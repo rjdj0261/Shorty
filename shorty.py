@@ -803,4 +803,4 @@ async def guildlist(ctx):
 
 # ? Start Bot
 
-bot.run(os.getenv("BOT_TOKEN"))
+bot.run(os.getenv('TOKEN'))
