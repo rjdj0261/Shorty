@@ -621,6 +621,16 @@ async def ping(ctx):
         .set_footer(text="Requested By " + ctx.author.name)
     )
     await ctx.send(embed=embed)
+    
+    
+# ? Suggest Command
+
+@commands.cooldown(2, 30, commands.BucketType.user)
+@bot.command()
+async def suggest(ctx, suggestion):
+    embed = discord.Embed(title=suggestion, color=0x0055FF).set_author(
+        name=ctx.message.author)
+    await bot.get_channel(999670833586901072).send(embed=embed)
 
 
 # ? Help Command
@@ -691,6 +701,9 @@ async def help(ctx):
     )
     embed.add_field(
         name="invite", value="Invite The Bot To Your Server", inline=False
+    )
+    embed.add_field(
+        name="suggest", value="Send A Suggestion To The Developer Of The Bot", inline=False
     )
     embed.add_field(
         name="support", value="Join The Support Server Of The Bot", inline=False
