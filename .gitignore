@@ -4,3 +4,4 @@ bot.log
 try
 __pycache__
 .vscode
+guildlist.csv
