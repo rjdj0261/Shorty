@@ -1,82 +1,113 @@
-#!/usr/bin/env python3
-
-# ? Imports
-
-import logging
-import os
-import platform
-from asyncio import sleep as _sleep
-from datetime import datetime
-from traceback import format_exc
-import aiohttp
 import discord
-import psutil
-import pyshorteners
 import sentry_sdk
-import statcord
-from discord import Embed
 from discord.ext import commands
+import psutil
+import logging
+import platform
+import datetime
+from enum import Enum
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
+import pyshorteners
 from firebase_dynamic_links import dynamic_link_builder
 import requests
 import json
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+
+token = os.environ.get("TOKEN")
+sentry = os.environ.get("SENTRY")
+log_file = os.environ.get("LOG_FILE")
+bitly_key = os.environ.get("BITLY_KEY")
+cuttly_key = os.environ.get("CUTTLY_KEY")
+shortcm_key = os.environ.get("SHORTCM_KEY")
+adfly_key = os.environ.get("ADFLY_KEY")
+adfly_uid = os.environ.get("ADFLY_UID")
+firebase_key = os.environ.get("FIREBASE_KEY")
+prefix = os.environ.get("PREFIX")
+
+# ? Bot Init
+intents = discord.Intents.default()
+intents.message_content = True
+bot = discord.Client(command_prefix=prefix, intents=intents, help_command=None, application_id=1090517686565470218, status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name=f"/help"))
+tree = discord.app_commands.CommandTree(bot)
 
 # ? Initiate Sentry
-
 sentry_sdk.init(
-    "https://5a2f4314d5e64816871afc04b5237c13@o574256.ingest.sentry.io/5744939",
+    dsn=sentry,
     traces_sample_rate=1.0,
     release="shorty@1.0.0",
-    sample_rate=0.25
+    sample_rate=0.25,
+    _experiments={"profiles_sample_rate": 1.0},
+    debug=True,
+    environment="staging",
+    max_breadcrumbs=50
 )
 
-# ? Shorten The Output Of Bytes
+# ? Initate URLValidator
+urlvalidator = URLValidator()
 
+# ? Initiate Logger
+logger = logging.getLogger(__name__)
 
-def get_size(bytes, suffix="B"):
-    """
+# ? Create handlers
+c_handler = logging.StreamHandler()
+f_handler = logging.FileHandler(log_file)
+c_handler.setLevel(logging.WARNING)
+f_handler.setLevel(logging.ERROR)
+
+# ? Create formatters and add it to handlers
+c_format = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+f_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+c_handler.setFormatter(c_format)
+f_handler.setFormatter(f_format)
+
+# ? Add handlers to the logger
+logger.addHandler(c_handler)
+logger.addHandler(f_handler)
+
+"""
     Scale bytes to its proper format
     e.g:
         1253656 => '1.20MB'
         1253656678 => '1.17GB'
     """
+def get_size(bytes, suffix="B"):
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:
         if bytes < factor:
             return f"{bytes:.2f}{unit}{suffix}"
         bytes /= factor
 
-
-# ? Shortener Creator Class
-
+# ? Shorteners
 class shortners:
     def __init__(self):
         self.isgd = pyshorteners.Shortener().isgd
         self.nullpointer = pyshorteners.Shortener(
             domain="https://0x0.st").nullpointer
         self.bitly = pyshorteners.Shortener(
-            api_key="eabb226f5855deb8fe02998123605a439f47d9b4").bitly
+            api_key=bitly_key).bitly
         self.chilpit = pyshorteners.Shortener().chilpit
         self.clckru = pyshorteners.Shortener().clckru
         self.cuttly = pyshorteners.Shortener(
-            api_key="b82be139ae1d0c408a1f44d31b48dc4f5cebf").cuttly
+            api_key=cuttly_key).cuttly
         self.dagd = pyshorteners.Shortener().dagd
         self.osdb = pyshorteners.Shortener().osdb
         self.shortcm = pyshorteners.Shortener(
-            api_key="0b36dd07-d05da0b5-67052811-e4e65108", domain="3adu.short.gy"
+            api_key=shortcm_key, domain="3adu.short.gy"
         ).shortcm
         self.tinyurl = pyshorteners.Shortener().tinyurl
         self.adfly = pyshorteners.Shortener(
-            api_key="d29be96973c37752a43f1f26e1f79d08",
-            user_id="24827485",
+            api_key=adfly_key,
+            user_id=adfly_uid,
             domain="test.us",
             group_id=12,
             type="int",
         )
         self.firebase = dynamic_link_builder(
-            api_key="AIzaSyDsi_Uumfc_Fvkjd0MC7JM01o-otzzTeRg")
+            api_key=firebase_key)
 
     def req(self, api, link):
         if api == "exeio":
@@ -138,83 +169,18 @@ class shortners:
                                 data=json.dumps(linkRequest),
                                 headers=requestHeaders)
             if (req.status_code == requests.codes.ok):
-                newurl = r.json()
+                newurl = req.json()
                 return newurl
             else:
                 return "AN ERROR OCCURED"
 
-
-# ? Initiate Bot
-bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or("?"),
-    help_command=None,
-)
-
-# ? Initate URLValidator
-urlvalidator = URLValidator()
-
 # ? Initiate Shorteners
 shortner = shortners()
 
-# ? Initiate Statcord
-statcord_key = "statcord.com-l6MDyFBxKPRCJESE2DTm"
-api = statcord.Client(bot, statcord_key)
-api.start_loop()
-
-# ? Initiate Logger
-logger = logging.getLogger(__name__)
-
-# ? Create handlers
-c_handler = logging.StreamHandler()
-f_handler = logging.FileHandler("bot.log")
-c_handler.setLevel(logging.WARNING)
-f_handler.setLevel(logging.ERROR)
-
-# ? Create formatters and add it to handlers
-c_format = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
-f_format = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-c_handler.setFormatter(c_format)
-f_handler.setFormatter(f_format)
-
-# ? Add handlers to the logger
-logger.addHandler(c_handler)
-logger.addHandler(f_handler)
-
-
-# ? Error Handler
-
-@bot.event
-async def on_command_error(ctx: commands.Context, error: commands.CommandError):
-    if isinstance(error, commands.CommandNotFound):
-        return  # Return because we don't want to show an error for every command not found
-    elif isinstance(error, commands.CommandOnCooldown):
-        message = f"This command is on cooldown. Please try again after {round(error.retry_after, 1)} seconds."
-    elif isinstance(error, commands.MissingPermissions):
-        message = "You are missing the required permissions to run this command!"
-    elif isinstance(error, commands.UserInputError):
-        message = f"Something about your input was wrong, please ensure the you use ```?command (link)``` check your input and try again!"
-    elif isinstance(error, commands.NotOwner):
-        return
-    else:
-        message = "Oh no! Something went wrong while running the command!"
-        await bot.get_channel(940164006998589470).send(error)
-        logger.error(error)
-
-    await ctx.send(message, delete_after=5)
-    await ctx.message.delete(delay=5)
-
-
-# ? Discord.py Ready Event
-
+# ? On Ready Event
 @bot.event
 async def on_ready():
-    await bot.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.watching,
-            name=f"?help in {len(bot.guilds)} servers!",
-        )
-    )
+    await tree.sync()
     print(
         """
                         _______           _______  _______ _________         
@@ -238,7 +204,7 @@ async def on_ready():
     # Boot Time
     print("=" * 40, "Boot Time", "=" * 40)
     boot_time_timestamp = psutil.boot_time()
-    bt = datetime.fromtimestamp(boot_time_timestamp)
+    bt = datetime.datetime.fromtimestamp(boot_time_timestamp)
     print(
         f"Boot Time: {bt.year}/{bt.month}/{bt.day} {bt.hour}:{bt.minute}:{bt.second}")
 
@@ -265,58 +231,41 @@ async def on_ready():
     print("=" * 40, "Logs", "=" * 40)
     logger.warning("We have logged in as {0.user}".format(bot))
 
-
-# ? Discord.py Guild Join Event
-
+# ? Error Handler
 @bot.event
-async def on_guild_join(guild):
-    await bot.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.watching,
-            name=f"?help in {len(bot.guilds)} servers!",
-        )
-    )
+async def on_command_error(interaction : discord.Interaction, error: commands.CommandError):
+    if isinstance(error, commands.CommandNotFound):
+        return  # Return because we don't want to show an error for every command not found
+    elif isinstance(error, commands.CommandOnCooldown):
+        message = f"This command is on cooldown. Please try again after {round(error.retry_after, 1)} seconds."
+    elif isinstance(error, commands.MissingPermissions):
+        message = "You are missing the required permissions to run this command!"
+    elif isinstance(error, commands.UserInputError):
+        message = f"Something about your input was wrong, please ensure the you use ```?command (link)``` check your input and try again!"
+    else:
+        message = "Oh no! Something went wrong while running the command!"
+        await bot.get_channel(1090745096040894604).send(error)
+        logger.error(error)
+        
+    await interaction.response.send_message(message, delete_after=5)
 
-
-# ? Discord.py Guild Remove Event
-
-@bot.event
-async def on_guild_remove(guild):
-    await bot.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.watching,
-            name=f"?help in {len(bot.guilds)} servers!",
-        )
-    )
-
-
-# ? Discord.py on_command Event For Statcord.py
-
-@bot.event
-async def on_command(ctx):
-    api.command_run(ctx)
-
-
-# ? Adfly Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def adfly(ctx, link):
+# ? Adfly
+@tree.command(description="Shorten your link using adfly!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def adfly(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.adfly.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.discord.Embed(title=shortner.adfly.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
-
-# ? Firebase Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def firebase(ctx, link):
+# ? Firebase
+@tree.command(description="Shorten your link using firebase!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def firebase(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
         options = {
@@ -324,320 +273,306 @@ async def firebase(ctx, link):
             'apn': 'com.example.android',
             'ibi': 'com.example.ios'
         }
-        embed = Embed(title=shortner.firebase.generate_short_link(app_code='pocketurl', **options), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.discord.Embed(title=shortner.firebase.generate_short_link(app_code='pocketurl', **options), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
-
-# ? Nullpointer Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def nullpointer(ctx, link):
+# ? Nullpointer
+@tree.command(description="Shorten your link using nullpointer!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def nullpointer(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.nullpointer.short(link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
-
-# ? Exeio Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def exeio(ctx, link):
+# ? Exeio
+@tree.command(description="Shorten your link using exeio!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def exeio(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.req("exeio", link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Vurl Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def vurl(ctx, link):
+# ? Vurl
+@tree.command(description="Shorten your link using vurl!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def vurl(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.req("vurl", link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Rebrandly Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def rebrandly(ctx, link):
+# ? Rebrandly
+@tree.command(description="Shorten your link using rebrandly!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def rebrandly(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.req("rebrandly", link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Shortest Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def shortest(ctx, link):
+# ? Shortest
+@tree.command(description="Shorten your link using shortest!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def shortest(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.req("shortest", link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Earn4clicks Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def earn4clicks(ctx, link):
+# ? Earn4clicks
+@tree.command(description="Shorten your link using earn4clicks!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def earn4clicks(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.req("earn4clicks", link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Gplinks Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def gplinks(ctx, link):
+# ? Gplinks
+@tree.command(description="Shorten your link using gplinks!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def gplinks(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.req("gplinks", link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Zagl Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def zagl(ctx, link):
+# ? Zagl
+@tree.command(description="Shorten your link using zagl!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def zagl(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(
+        embed = discord.Embed(
             title=shortner.req("zagl", link), color=0x0055FF
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
+        ).set_footer(text="Requested By " + interaction.user.name)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Isgd Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def isgd(ctx, link):
+# ? Isgd
+@tree.command(description="Shorten your link using isgd!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def isgd(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.isgd.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.isgd.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Bitly Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def bitly(ctx, link):
+# ? Bitly
+@tree.command(description="Shorten your link using bitly!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def bitly(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.bitly.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.bitly.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Chilpit Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def chilpit(ctx, link):
+# ? Chilpit
+@tree.command(description="Shorten your link using chilpit!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def chilpit(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.chilpit.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.chilpit.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Clckru Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def clckru(ctx, link):
+# ? Clckru
+@tree.command(description="Shorten your link using clckru!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def clckru(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.clckru.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.clckru.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Cuttly Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def cuttly(ctx, link):
+# ? Cuttly
+@tree.command(description="Shorten your link using cuttly!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def cuttly(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.cuttly.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.cuttly.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Dagd Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def dagd(ctx, link):
+# ? Dagd
+@tree.command(description="Shorten your link using dagd!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def dagd(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.dagd.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.dagd.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Osdb Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def osdb(ctx, link):
+# ? Osdb
+@tree.command(description="Shorten your link using osdb!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def osdb(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.osdb.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.osdb.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Shortcm Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def shortcm(ctx, link):
+# ? Shortcm
+@tree.command(description="Shorten your link using shortcm!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def shortcm(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.shortcm.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.shortcm.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
 
-# ? Tinyurl Command
-
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def tinyurl(ctx, link):
+# ? Tinyurl
+@tree.command(description="Shorten your link using tinyurl!")
+@discord.app_commands.describe(link="Link you want to shorten!")
+async def tinyurl(interaction : discord.Interaction, link : str):
     try:
         urlvalidator(link)
-        embed = Embed(title=shortner.tinyurl.short(link), color=0x0055FF).set_footer(
-            text="Requested By " + ctx.author.name
+        embed = discord.Embed(title=shortner.tinyurl.short(link), color=0x0055FF).set_footer(
+            text="Requested By " + interaction.user.name
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except ValidationError:
-        await ctx.send("Please Input A Valid Link!")
+        await interaction.response.send_message("Please Input A Valid Link!")
 
+# ? Guildlist (Owner Only)
+@tree.command(description="Get list of servers shorty is in!")
+@commands.bot_has_permissions(attach_files=True)
+async def guildlist(interaction : discord.Interaction):
+    if interaction.user.id == 829232267658264607:
+        with open("guildlist.csv", "w") as guild_list:
+            guild_list.write("Server ID,Server Name,# of Users,Features\n")
+            for guild in bot.guilds:
+                # Write to csv file (guild name, total member count, region and features)
+                guild_list.write(
+                    f'{guild.id},"{guild.name}",{guild.member_count},{guild.features}\n'
+                )
 
-# ? Invite Command
+        await interaction.response.send_message(file=discord.File("guildlist.csv"))
+    else: await interaction.response.send_message("You need to be the owner of the bot to run this command!")
 
-@bot.command()
-async def invite(ctx):
-    embed = Embed(
+# ? Invite
+@tree.command(description="Invite shorty to your server!")
+async def invite(interaction : discord.Interaction):
+    embed = discord.Embed(
         title="Invite The Bot",
         description=f"[https://dsc.gg/shorty](https://dsc.gg/shorty)",
         color=0x0055FF,
-    ).set_footer(text="Requested By " + ctx.author.name)
-    await ctx.send(embed=embed)
+    ).set_footer(text="Requested By " + interaction.user.name)
+    await interaction.response.send_message(embed=embed)
 
-
-# ? Support Command
-
-@bot.command()
-async def support(ctx):
-    embed = Embed(
+# ? Support
+@tree.command(description="Join shorty's support server!")
+async def support(interaction : discord.Interaction):
+    embed = discord.Embed(
         title="Join The Support Server",
         description=f'[https://dsc.gg/shorty-support](https://dsc.gg/shorty-support)',
         color=0x0055FF,
-    ).set_footer(text="Requested By " + ctx.author.name)
-    await ctx.send(embed=embed)
+    ).set_footer(text="Requested By " + interaction.user.name)
+    await interaction.response.send_message(embed=embed)
 
-
-# ? Ping Command
-
-@bot.command()
-async def ping(ctx):
+# ? Ping
+@tree.command(description="Join shorty's support server!")
+async def ping(interaction : discord.Interaction):
     embed = (
-        Embed(color=0x0055FF)
+        discord.Embed(color=0x0055FF)
         .add_field(name="Ping", value=bot.latency, inline=False)
-        .set_footer(text="Requested By " + ctx.author.name)
-    )
-    await ctx.send(embed=embed)
-    
-    
-# ? Suggest Command
+        .set_footer(text="Requested By " + interaction.user.name))
+    await interaction.response.send_message(embed=embed)
 
-@commands.cooldown(2, 30, commands.BucketType.user)
-@bot.command()
-async def suggest(ctx, suggestion):
+# ? Suggest
+@tree.command(description="Give us your valuable suggestions!")
+@discord.app_commands.describe(suggestion="Suggestion you would like to give!")
+async def suggest(interaction : discord.Interaction, suggestion : str):
     embed = discord.Embed(title=suggestion, color=0x0055FF).set_author(
-        name=ctx.message.author)
-    await bot.get_channel(999670833586901072).send(embed=embed)
+        name=interaction.user.name)
+    await bot.fetch_channel(1090758793501085696).send(embed=embed)
 
-
-# ? Help Command
-
-@bot.command()
-async def help(ctx):
-    embed = Embed(
+# ? Help
+@tree.command(description="Get list of commands!")
+async def help(interaction : discord.Interaction):
+    embed = discord.Embed(
         title="List Of Commands",
         description="Every Command Has A Cooldown of 30 seconds!",
         color=0x0055FF,
@@ -712,108 +647,8 @@ async def help(ctx):
         name="ping", value="Ping Of The Bot", inline=False
     )
     embed.set_footer(
-        text="Requested By " + ctx.author.name
+        text="Requested By " + interaction.user.name
     )
+    await interaction.response.send_message(embed=embed)
 
-    await ctx.send(embed=embed)
-
-
-# ? Eval Command (Owner Only)
-
-@bot.command(name="eval", hidden=True)
-@commands.is_owner()
-async def eval_(ctx: commands.Context, *, code: str):
-    code = code.strip("`")
-    if code.startswith(("py\n", "python\n")):
-        code = "\n".join(code.split("\n")[1:])
-
-    try:
-        exec(
-            "async def __function():\n"
-            + "".join(f"\n    {line}" for line in code.split("\n")),
-            locals(),
-        )
-
-        await locals()["__function"]()
-    except:
-        await ctx.send(
-            embed=Embed(
-                title="Error!",
-                description=f"```{format_exc()}```",
-                color=discord.Color.red(),
-            ).set_footer(
-                text=f"Invoker: {ctx.author}",
-                icon_url=ctx.author.avatar_url_as(format="png"),
-            )
-        )
-
-
-# ? Eval Error Handler
-
-@eval_.error
-async def eval__error(ctx, error):
-    await ctx.send(
-        embed=Embed(
-            title="Error!", description=f"```{error}```", color=discord.Color.red()
-        ).set_footer(
-            text=f"Invoker: {ctx.author}",
-            icon_url=ctx.author.avatar_url_as(format="png"),
-        )
-    )
-
-
-# ? Selfpurge Command (Owner Only)
-
-@bot.command(hidden=True)
-@commands.is_owner()
-async def selfpurge(ctx, amount=2):
-    amount = int(amount)
-
-    def fusion(m):
-        return bot.user.id == m.author.id
-
-    await ctx.message.channel.purge(limit=amount, check=fusion, bulk=False)
-    await ctx.send(
-        embed=Embed(
-            title="Purged",
-            description=f"{ctx.author.mention} i have successfully purged `{amount}` of messages in <#{ctx.message.channel.id}>",
-            color=ctx.author.color,
-        ),
-        delete_after=3,
-    )
-    await _sleep(3)
-    await ctx.message.delete()
-
-
-# ? Avatar Command (Owner Only)
-
-@bot.command(hidden=True)
-@commands.is_owner()
-async def avatar(ctx, avatar_url):
-    async with aiohttp.ClientSession() as aioClient:
-        async with aioClient.get(avatar_url) as resp:
-            new_avatar = await resp.read()
-            await bot.user.edit(avatar=new_avatar)
-            await ctx.send("Avatar changed!")
-
-
-# ? Guildlist Command (Owner Only)
-
-@bot.command(hidden=True)
-@commands.is_owner()
-@commands.bot_has_permissions(attach_files=True)
-async def guildlist(ctx):
-    with open("guildlist.csv", "w") as guild_list:
-        guild_list.write("Server ID,Server Name,# of Users,Features\n")
-        for guild in bot.guilds:
-            # Write to csv file (guild name, total member count, region and features)
-            guild_list.write(
-                f'{guild.id},"{guild.name}",{guild.member_count},{guild.features}\n'
-            )
-
-    await ctx.send(file=discord.File("guildlist.csv"))
-
-
-# ? Start Bot
-
-bot.run(os.getenv('TOKEN'))
+bot.run("")
