@@ -651,4 +651,4 @@ async def help(interaction : discord.Interaction):
     )
     await interaction.response.send_message(embed=embed)
 
-bot.run("")
+bot.run(token)
