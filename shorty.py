@@ -5,7 +5,6 @@ import psutil
 import logging
 import platform
 import datetime
-from enum import Enum
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 import pyshorteners
