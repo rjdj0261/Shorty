@@ -8,3 +8,4 @@ python-dotenv
 flask
 gunicorn
 py-fdl
+aioredis
