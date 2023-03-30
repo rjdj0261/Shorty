@@ -748,7 +748,7 @@ async def give_premium(interaction: discord.Interaction, user : discord.User):
 
 # ? Remove Premium
 @tree.command(description="Remove someone's premium! [OWNER ONLY]")
-async def give_premium(interaction: discord.Interaction, user : discord.User):
+async def remove_premium(interaction: discord.Interaction, user : discord.User):
     if interaction.user.id == owner:
         await rm_user(user.id)
         embed = (
