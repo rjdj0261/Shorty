@@ -1,20 +1,8 @@
 import discord
-from discord import app_commands
-from sentry_sdk import init as sentry_init
 from discord.ext import commands
-from psutil import boot_time, cpu_count, cpu_freq, cpu_percent, virtual_memory
 import logging
-import platform
-from datetime import datetime
-from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
-import pyshorteners
-from firebase_dynamic_links import dynamic_link_builder as dlb
-import requests
-from json import dumps, loads
 from dotenv import load_dotenv
-from asyncio import run
-from os import environ
+from django.core.exceptions import ValidationError
 
 load_dotenv()
 
@@ -35,6 +23,7 @@ def get_size(bytes, suffix="B"):
 class Shorty(commands.AutoShardedBot):
     class Settings:
         """A class that manages all settings from .env file"""
+        from os import environ
         token = environ.get("TOKEN")
         sentry = environ.get("SENTRY")
         log_file = environ.get("LOG_FILE")
@@ -44,13 +33,14 @@ class Shorty(commands.AutoShardedBot):
         adfly_key = environ.get("ADFLY_KEY")
         adfly_uid = environ.get("ADFLY_UID")
         firebase_key = environ.get("FIREBASE_KEY")
-        prefix = environ.get("PREFIX")
         application_id = environ.get("APPLICATION_ID")
         shard_id = environ.get("SHARD_ID")
 
     class Shortners:
         """Link Shortner Class"""
         def __init__(self, settings):
+            from firebase_dynamic_links import dynamic_link_builder as dlb
+            import pyshorteners
             self.isgd = pyshorteners.Shortener().isgd
             self.nullpointer = pyshorteners.Shortener(domain="https://0x0.st").nullpointer
             self.bitly = pyshorteners.Shortener(api_key=settings.bitly_key).bitly
@@ -74,9 +64,11 @@ class Shorty(commands.AutoShardedBot):
 
         def req(self, api, link):
             """Shortener Request Method"""
+            from requests import get, put, codes, post
+            from json import dumps, loads
             if api == "exeio":
                 try:
-                    req = requests.get(
+                    req = get(
                         f"https://exe.io/api?api=afe5d717ef19304362234cf6f6b3d934ab0d1a07&url={link}"
                     ).json()["shortenedUrl"]
                     return req
@@ -84,7 +76,7 @@ class Shorty(commands.AutoShardedBot):
                     return "AN ERROR OCCURED"
             elif api == "gplinks":
                 try:
-                    req = requests.get(
+                    req = get(
                         f"https://gplinks.in/api?api=eeebc0507eb61fbd079041825d73a5ddb80a7a20&url={link}"
                     ).json()["shortenedUrl"]
                     return req
@@ -92,13 +84,13 @@ class Shorty(commands.AutoShardedBot):
                     return "AN ERROR OCCURED"
             elif api == "zagl":
                 try:
-                    req = requests.get(f"").json()["shortenedUrl"]
+                    req = get(f"").json()["shortenedUrl"]
                     return req
                 except:
                     return "AN ERROR OCCURED"
             elif api == "zagl":
                 try:
-                    req = requests.get(
+                    req = get(
                         f"https://za.gl/api?api=00240505bb426a55e0b1b57bcb0b02cb16d329d3&url={link}"
                     ).json()["shortenedUrl"]
                     return req
@@ -106,7 +98,7 @@ class Shorty(commands.AutoShardedBot):
                     return "AN ERROR OCCURED"
             elif api == "earn4clicks":
                 try:
-                    req = requests.get(
+                    req = get(
                         f"https://earn4clicks.in/api?api=a9fd295d6d92818d4e8db9b854ab46f167838c4f&url={link}"
                     ).json()["shortenedUrl"]
                     return req
@@ -115,7 +107,7 @@ class Shorty(commands.AutoShardedBot):
             elif api == "shortest":
                 try:
                     req = loads(
-                        requests.put(
+                        put(
                             "https://api.shorte.st/v1/data/url",
                             {"urlToShorten": link},
                             headers={
@@ -128,7 +120,7 @@ class Shorty(commands.AutoShardedBot):
                     return "AN ERROR OCCURED"
             elif api == "vurl":
                 try:
-                    req = requests.get(f"https://vurl.com/api.php?url={link}").text
+                    req = get(f"https://vurl.com/api.php?url={link}").text
                     return req
                 except:
                     return "AN ERROR OCCURED"
@@ -138,19 +130,25 @@ class Shorty(commands.AutoShardedBot):
                     "Content-type": "application/json",
                     "apikey": "6053520de6be4edc9df4a55a95fc2949",
                 }
-                req = requests.post(
+                req = post(
                     "https://api.rebrandly.com/v1/links",
                     data=dumps(linkRequest),
                     headers=requestHeaders,
                 )
-                if req.status_code == requests.codes.ok:
+                if req.status_code == codes.ok:
                     newurl = req.json()
                     return newurl
                 else:
                     return "AN ERROR OCCURED"
 
-    def __init__(self, intents: discord.Intents, prefix: str, help_command=None) -> None:
+    from pretty_help import PrettyHelp
+
+    def __init__(self, intents: discord.Intents, prefix: str, help_command=PrettyHelp(color=0x0055FF, ending_note="\"Requested By \" + ctx.author.name", dm_help=True, sort_commands=True)) -> None:
         super().__init__(intents=intents, command_prefix=prefix, help_command=help_command)
+        from django.core.validators import URLValidator
+        import platform
+        from datetime import datetime
+        from psutil import boot_time, cpu_freq 
         self.settings = self.Settings()
         self.activity=discord.Activity(type=discord.ActivityType.watching, name=f"/help")
         self.status=discord.Status.online
@@ -162,14 +160,308 @@ class Shorty(commands.AutoShardedBot):
         self.bt = datetime.fromtimestamp(self.boot_time_timestamp)
         self.cpufreq = cpu_freq()
 
-# ? Commands class
-class Commands(commands.Cog):
+# ? Commands classes
+class LinkShortenerCommands(commands.Cog, name="Link Shortener Commands"):
+    """Commands Used For Shortening Links"""
+    def __init__(self, bot: commands.AutoShardedBot) -> None:
+        self.shorty: commands.AutoShardedBot = bot
+
+    # ? Adfly
+    @commands.hybrid_command(description="Shorten your link using adfly!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def adfly(self, ctx : commands.Context, link: str):
+        """Shorten your links using adfly"""
+        try:
+            self.self.shorty.urlvalidator(link)
+            embed = discord.discord.Embed(
+                title=self.self.shorty.shortner.adfly.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Firebase
+    @commands.hybrid_command(description="Shorten your link using firebase!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def firebase(self, ctx : commands.Context, link: str):
+        """Shorten your links using firebase"""
+        try:
+            self.self.shorty.urlvalidator(link)
+            options = {"link": link, "apn": "com.example.android", "ibi": "com.example.ios"}
+            embed = discord.discord.Embed(
+                title=self.self.shorty.shortner.firebase.generate_short_link(
+                    app_code="pocketurl", **options
+                ),
+                color=0x0055FF,
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Nullpointer
+    @commands.hybrid_command(description="Shorten your link using nullpointer!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def nullpointer(self, ctx : commands.Context, link: str):
+        """Shorten your links using nullpointer"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.nullpointer.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Exeio
+    @commands.hybrid_command(description="Shorten your link using exeio!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def exeio(self, ctx : commands.Context, link: str):
+        """Shorten your links using exeio"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.req("exeio", link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Vurl
+    @commands.hybrid_command(description="Shorten your link using vurl!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def vurl(self, ctx : commands.Context, link: str):
+        """Shorten your links using vurl"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.req("vurl", link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Rebrandly
+    @commands.hybrid_command(description="Shorten your link using rebrandly!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def rebrandly(self, ctx : commands.Context, link: str):
+        """Shorten your links using rebrandly"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.req("rebrandly", link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Shortest
+    @commands.hybrid_command(description="Shorten your link using shortest!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def shortest(self, ctx : commands.Context, link: str):
+        """Shorten your links using shortest"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.req("shortest", link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Earn4clicks
+    @commands.hybrid_command(description="Shorten your link using earn4clicks!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def earn4clicks(self, ctx : commands.Context, link: str):
+        """Shorten your links using earn4clicks"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.req("earn4clicks", link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Gplinks
+    @commands.hybrid_command(description="Shorten your link using gplinks!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def gplinks(self, ctx : commands.Context, link: str):
+        """Shorten your links using gplinks"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.req("gplinks", link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Zagl
+    @commands.hybrid_command(description="Shorten your link using zagl!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def zagl(self, ctx : commands.Context, link: str):
+        """Shorten your links using zagl"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.req("zagl", link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Isgd
+    @commands.hybrid_command(description="Shorten your link using isgd!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def isgd(self, ctx : commands.Context, link: str):
+        """Shorten your links using isgd"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.isgd.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Bitly
+    @commands.hybrid_command(description="Shorten your link using bitly!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def bitly(self, ctx : commands.Context, link: str):
+        """Shorten your links using bitly"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.bitly.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Chilpit
+    @commands.hybrid_command(description="Shorten your link using chilpit!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def chilpit(self, ctx : commands.Context, link: str):
+        """Shorten your links using chilpit"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.chilpit.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Clckru
+    @commands.hybrid_command(description="Shorten your link using clckru!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def clckru(self, ctx : commands.Context, link: str):
+        """Shorten your links using clckru"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.clckru.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Cuttly
+    @commands.hybrid_command(description="Shorten your link using cuttly!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def cuttly(self, ctx : commands.Context, link: str):
+        """Shorten your links using cuttly"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.cuttly.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Dagd
+    @commands.hybrid_command(description="Shorten your link using dagd!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def dagd(self, ctx : commands.Context, link: str):
+        """Shorten your links using dagd"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.dagd.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Osdb
+    @commands.hybrid_command(description="Shorten your link using osdb!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def osdb(self, ctx : commands.Context, link: str):
+        """Shorten your links using osdb"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.osdb.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Shortcm
+    @commands.hybrid_command(description="Shorten your link using shortcm!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def shortcm(self, ctx : commands.Context, link: str):
+        """Shorten your links using shortcm"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.shortcm.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+
+    # ? Tinyurl
+    @commands.hybrid_command(description="Shorten your link using tinyurl!")
+    @discord.app_commands.describe(link="Link you want to shorten!")
+    async def tinyurl(self, ctx : commands.Context, link: str):
+        """Shorten your links using tinyurl"""
+        try:
+            self.shorty.urlvalidator(link)
+            embed = discord.Embed(
+                title=self.shorty.shortner.tinyurl.short(link), color=0x0055FF
+            ).set_footer(text="Requested By " + ctx.author.name)
+            await ctx.send(embed=embed)
+        except ValidationError:
+            await ctx.send("Please Input A Valid Link!")
+
+class EventListeners(commands.Cog, name="Event Listeners"):
     def __init__(self, bot: commands.AutoShardedBot) -> None:
         self.shorty: commands.AutoShardedBot = bot
 
     # ? On Ready Event
     @commands.Cog.listener()
     async def on_ready(self):
+        from psutil import  cpu_count, cpu_percent, virtual_memory
         print(
             """
                             _______           _______  _______ _________         
@@ -229,280 +521,73 @@ class Commands(commands.Cog):
 
         await ctx.send(message, delete_after=5)
 
-    # ? Adfly
-    @commands.hybrid_command(description="Shorten your link using adfly!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def adfly(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.discord.Embed(
-                title=shorty.shortner.adfly.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
+class UtilityCommands(commands.Cog, name="Utility Commands"):
+    def __init__(self, bot: commands.AutoShardedBot) -> None:
+        self.shorty: commands.AutoShardedBot = bot
+
+    # ? Invite
+    @commands.hybrid_command(description="Invite shorty to your server!")
+    async def invite(self, ctx : commands.Context):
+        """"Get the link to invite the bot"""
+        embed = discord.Embed(
+            title="Invite The Bot",
+            description=f"[https://dsc.gg/shorty](https://dsc.gg/shorty)",
+            color=0x0055FF,
+        ).set_footer(text="Requested By " + ctx.author.name)
+        await ctx.send(embed=embed)
 
 
-    # ? Firebase
-    @commands.hybrid_command(description="Shorten your link using firebase!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def firebase(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            options = {"link": link, "apn": "com.example.android", "ibi": "com.example.ios"}
-            embed = discord.discord.Embed(
-                title=shorty.shortner.firebase.generate_short_link(
-                    app_code="pocketurl", **options
-                ),
-                color=0x0055FF,
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
+    # ? Support
+    @commands.hybrid_command(description="Join shorty's support server!")
+    async def support(self, ctx : commands.Context):
+        """Get the link to the support server"""
+        embed = discord.Embed(
+            title="Join The Support Server",
+            description=f"[https://dsc.gg/shorty-support](https://dsc.gg/shorty-support)",
+            color=0x0055FF,
+        ).set_footer(text="Requested By " + ctx.author.name)
+        await ctx.send(embed=embed)
 
 
-    # ? Nullpointer
-    @commands.hybrid_command(description="Shorten your link using nullpointer!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def nullpointer(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.nullpointer.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
+    # ? Ping
+    @commands.hybrid_command(description="Join shorty's support server!")
+    async def ping(self, ctx : commands.Context):
+        """Get the bot's ping"""
+        embed = (
+            discord.Embed(color=0x0055FF)
+            .add_field(name="Ping", value=shorty.latency, inline=False)
+            .set_footer(text="Requested By " + ctx.author.name)
+        )
+        await ctx.send(embed=embed)
 
 
-    # ? Exeio
-    @commands.hybrid_command(description="Shorten your link using exeio!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def exeio(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.req("exeio", link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
+    # ? Suggest
+    @commands.hybrid_command(description="Give us your valuable suggestions!")
+    @discord.app_commands.describe(suggestion="Suggestion you would like to give!")
+    async def suggest(self, ctx : commands.Context, suggestion: str):
+        """Give suggestions"""
+        embed = discord.Embed(title=suggestion, color=0x0055FF).set_author(
+            name=ctx.author.name
+        )
+        await shorty.fetch_channel(1090758793501085696).send(embed=embed)
 
+class OwnerCommands(commands.Cog, name="Owner Only Commands"):
+    def __init__(self, bot: commands.AutoShardedBot) -> None:
+        self.shorty: commands.AutoShardedBot = bot
 
-    # ? Vurl
-    @commands.hybrid_command(description="Shorten your link using vurl!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def vurl(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.req("vurl", link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Rebrandly
-    @commands.hybrid_command(description="Shorten your link using rebrandly!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def rebrandly(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.req("rebrandly", link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Shortest
-    @commands.hybrid_command(description="Shorten your link using shortest!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def shortest(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.req("shortest", link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Earn4clicks
-    @commands.hybrid_command(description="Shorten your link using earn4clicks!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def earn4clicks(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.req("earn4clicks", link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Gplinks
-    @commands.hybrid_command(description="Shorten your link using gplinks!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def gplinks(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.req("gplinks", link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Zagl
-    @commands.hybrid_command(description="Shorten your link using zagl!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def zagl(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.req("zagl", link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Isgd
-    @commands.hybrid_command(description="Shorten your link using isgd!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def isgd(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.isgd.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Bitly
-    @commands.hybrid_command(description="Shorten your link using bitly!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def bitly(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.bitly.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Chilpit
-    @commands.hybrid_command(description="Shorten your link using chilpit!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def chilpit(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.chilpit.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Clckru
-    @commands.hybrid_command(description="Shorten your link using clckru!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def clckru(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.clckru.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Cuttly
-    @commands.hybrid_command(description="Shorten your link using cuttly!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def cuttly(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.cuttly.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Dagd
-    @commands.hybrid_command(description="Shorten your link using dagd!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def dagd(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.dagd.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Osdb
-    @commands.hybrid_command(description="Shorten your link using osdb!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def osdb(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.osdb.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Shortcm
-    @commands.hybrid_command(description="Shorten your link using shortcm!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def shortcm(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.shortcm.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Tinyurl
-    @commands.hybrid_command(description="Shorten your link using tinyurl!")
-    @discord.app_commands.describe(link="Link you want to shorten!")
-    async def tinyurl(self, ctx : commands.Context, link: str):
-        try:
-            shorty.urlvalidator(link)
-            embed = discord.Embed(
-                title=shorty.shortner.tinyurl.short(link), color=0x0055FF
-            ).set_footer(text="Requested By " + ctx.author.name)
-            await ctx.send(embed=embed)
-        except ValidationError:
-            await ctx.send("Please Input A Valid Link!")
-
-
-    # ? Guildlist (Owner Only)
-    @commands.hybrid_command(description="Get list of servers shorty is in!")
-    @commands.bot_has_permissions(attach_files=True)
+    # ? Sync
+    @commands.hybrid_command(description="Sync Command Updates.")
+    async def sync(self, ctx : commands.Context):
+        """Sync command updates"""
+        check = await shorty.is_owner(ctx.author)
+        if check:
+            await shorty.tree.sync()
+        else: await ctx.send("You need to be the owner of shorty to run this command!")
+    
+    # ? Guildlist
+    @commands.hybrid_command(description="Get List Of Guilds The Bot Is In.")
     async def guildlist(self, ctx : commands.Context):
+        """Get list of all the guilds the bot is in"""
         check = await shorty.is_owner(ctx.author)
         if check:
             with open("guildlist.csv", "w") as guild_list:
@@ -518,125 +603,14 @@ class Commands(commands.Cog):
                 "You need to be the owner of the bot to run this command!"
             )
 
-
-    # ? Invite
-    @commands.hybrid_command(description="Invite shorty to your server!")
-    async def invite(self, ctx : commands.Context):
-        embed = discord.Embed(
-            title="Invite The Bot",
-            description=f"[https://dsc.gg/shorty](https://dsc.gg/shorty)",
-            color=0x0055FF,
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
-
-
-    # ? Support
-    @commands.hybrid_command(description="Join shorty's support server!")
-    async def support(self, ctx : commands.Context):
-        embed = discord.Embed(
-            title="Join The Support Server",
-            description=f"[https://dsc.gg/shorty-support](https://dsc.gg/shorty-support)",
-            color=0x0055FF,
-        ).set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
-
-
-    # ? Ping
-    @commands.hybrid_command(description="Join shorty's support server!")
-    async def ping(self, ctx : commands.Context):
-        embed = (
-            discord.Embed(color=0x0055FF)
-            .add_field(name="Ping", value=shorty.latency, inline=False)
-            .set_footer(text="Requested By " + ctx.author.name)
-        )
-        await ctx.send(embed=embed)
-
-
-    # ? Suggest
-    @commands.hybrid_command(description="Give us your valuable suggestions!")
-    @discord.app_commands.describe(suggestion="Suggestion you would like to give!")
-    async def suggest(self, ctx : commands.Context, suggestion: str):
-        embed = discord.Embed(title=suggestion, color=0x0055FF).set_author(
-            name=ctx.author.name
-        )
-        await shorty.fetch_channel(1090758793501085696).send(embed=embed)
-
-
-    # ? Help
-    @commands.hybrid_command(description="Get list of commands!")
-    async def help(self, ctx : commands.Context):
-        embed = discord.Embed(
-            title="List Of Commands",
-            description="Every Command Has A Cooldown of 30 seconds!",
-            color=0x0055FF,
-        )
-        embed.add_field(name="adfly", value="Shorten Your Link Using Adfly.", inline=False)
-        embed.add_field(
-            name="nullpointer", value="Shorten Your Link Using Nullpointer.", inline=False
-        )
-        embed.add_field(name="isgd", value="Shorten Your Link Using Isgd.", inline=False)
-        embed.add_field(name="bitly", value="Shorten Your Link Using Bitly.", inline=False)
-        embed.add_field(
-            name="chilpit", value="Shorten Your Link Using Chilpit.", inline=False
-        )
-        embed.add_field(
-            name="clckru", value="Shorten Your Link Using Clckru.", inline=False
-        )
-        embed.add_field(
-            name="cuttly", value="Shorten Your Link Using Cuttly.", inline=False
-        )
-        embed.add_field(name="dagd", value="Shorten Your Link Using Dagd.", inline=False)
-        embed.add_field(name="osdb", value="Shorten Your Link Using Osdb.", inline=False)
-        embed.add_field(
-            name="shortcm", value="Shorten Your Link Using Shortcm.", inline=False
-        )
-        embed.add_field(
-            name="tinyurl", value="Shorten Your Link Using Tinyurl.", inline=False
-        )
-        embed.add_field(name="exeio", value="Shorten Your Link Using Exeio.", inline=False)
-        embed.add_field(
-            name="rebrandly", value="Shorten Your Link Using Rebrandly.", inline=False
-        )
-        embed.add_field(
-            name="gplinks", value="Shorten Your Link Using Gplinks.", inline=False
-        )
-        embed.add_field(name="zagl", value="Shorten Your Link Using Zagl.", inline=False)
-        embed.add_field(
-            name="shortest", value="Shorten Your Link Using Shortest.", inline=False
-        )
-        embed.add_field(
-            name="earn4clicks", value="Shorten Your Link Using Earn4clicks.", inline=False
-        )
-        embed.add_field(name="vurl", value="Shorten Your Link Using Vurl.", inline=False)
-        embed.add_field(
-            name="firebase", value="Shorten Your Link Using Shorty's Firebase.", inline=False,
-        )
-        embed.add_field(name="invite", value="Invite The Bot To Your Server", inline=False)
-        embed.add_field(
-            name="suggest", value="Send A Suggestion To The Developer Of The Bot", inline=False,
-        )
-        embed.add_field(
-            name="support", value="Join The Support Server Of The Bot", inline=False
-        )
-        embed.add_field(name="ping", value="Ping Of The Bot", inline=False)
-        embed.set_footer(text="Requested By " + ctx.author.name)
-        await ctx.send(embed=embed)
-
-    # ? Sync
-    @commands.hybrid_command(description="Sync Command Updates.")
-    async def sync(self, ctx : commands.Context):
-        check = await shorty.is_owner(ctx.author)
-        if check:
-            await shorty.tree.sync()
-        else: await ctx.send("You need to be the owner of shorty to run this command!")
-
 # ? Bot Init
 intents = discord.Intents.default()
 intents.message_content = True
-prefix = environ.get("PREFIX")
+prefix = "!"
 shorty = Shorty(intents=intents, prefix=prefix)
 
 # ? Initiate Sentry
+from sentry_sdk import init as sentry_init
 sentry_init(
     dsn=shorty.settings.sentry,
     traces_sample_rate=1.0,
@@ -666,9 +640,13 @@ f_handler.setFormatter(f_format)
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
+# ? Load Commands
 async def load():
-    await shorty.add_cog(Commands(shorty))
-    await shorty.load_extension('jishaku')
-
+    await shorty.add_cog(LinkShortenerCommands(shorty))
+    await shorty.add_cog(EventListeners(shorty))
+    await shorty.add_cog(UtilityCommands(shorty))
+    await shorty.add_cog(OwnerCommands(shorty))
+from asyncio import run
 run(load())
+
 shorty.run(shorty.settings.token)
