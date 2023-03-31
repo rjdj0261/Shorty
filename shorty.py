@@ -13,7 +13,6 @@ import requests
 from json import dumps, loads
 from aioredis import from_url
 from dotenv import load_dotenv
-from better_help import Help
 
 load_dotenv()
 
@@ -228,9 +227,9 @@ bot = commands.AutoShardedBot(
     shard_id=settings.shard_id,
     command_prefix=settings.prefix,
     intents=intents,
-    help_command=Help(),
+    help_command=None,
     application_id=settings.application_id,
-    status=discord.StaHes.online,
+    status=discord.Status.online,
     activity=discord.Activity(type=discord.ActivityType.watching, name=f"/help"),
 )
 
@@ -678,69 +677,69 @@ async def suggest(interaction: discord.Interaction, suggestion: str):
     await bot.fetch_channel(1090758793501085696).send(embed=embed)
 
 
-# # ? Help
-# @bot.tree.command(description="Get list of commands!")
-# async def help(interaction: discord.Interaction):
-#     embed = discord.Embed(
-#         title="List Of Commands",
-#         description="Every Command Has A Cooldown of 30 seconds!",
-#         color=0x0055FF,
-#     )
-#     embed.add_field(name="adfly", value="Shorten Your Link Using Adfly.", inline=False)
-#     embed.add_field(
-#         name="nullpointer", value="Shorten Your Link Using Nullpointer.", inline=False
-#     )
-#     embed.add_field(name="isgd", value="Shorten Your Link Using Isgd.", inline=False)
-#     embed.add_field(name="bitly", value="Shorten Your Link Using Bitly.", inline=False)
-#     embed.add_field(
-#         name="chilpit", value="Shorten Your Link Using Chilpit.", inline=False
-#     )
-#     embed.add_field(
-#         name="clckru", value="Shorten Your Link Using Clckru.", inline=False
-#     )
-#     embed.add_field(
-#         name="cuttly", value="Shorten Your Link Using Cuttly.", inline=False
-#     )
-#     embed.add_field(name="dagd", value="Shorten Your Link Using Dagd.", inline=False)
-#     embed.add_field(name="osdb", value="Shorten Your Link Using Osdb.", inline=False)
-#     embed.add_field(
-#         name="shortcm", value="Shorten Your Link Using Shortcm.", inline=False
-#     )
-#     embed.add_field(
-#         name="tinyurl", value="Shorten Your Link Using Tinyurl.", inline=False
-#     )
-#     embed.add_field(name="exeio", value="Shorten Your Link Using Exeio.", inline=False)
-#     embed.add_field(
-#         name="rebrandly", value="Shorten Your Link Using Rebrandly.", inline=False
-#     )
-#     embed.add_field(
-#         name="gplinks", value="Shorten Your Link Using Gplinks.", inline=False
-#     )
-#     embed.add_field(name="zagl", value="Shorten Your Link Using Zagl.", inline=False)
-#     embed.add_field(
-#         name="shortest", value="Shorten Your Link Using Shortest.", inline=False
-#     )
-#     embed.add_field(
-#         name="earn4clicks", value="Shorten Your Link Using Earn4clicks.", inline=False
-#     )
-#     embed.add_field(name="vurl", value="Shorten Your Link Using Vurl.", inline=False)
-#     embed.add_field(
-#         name="firebase",
-#         value="Shorten Your Link Using Shorty's Firebase.",
-#         inline=False,
-#     )
-#     embed.add_field(name="invite", value="Invite The Bot To Your Server", inline=False)
-#     embed.add_field(
-#         name="suggest",
-#         value="Send A Suggestion To The Developer Of The Bot",
-#         inline=False,
-#     )
-#     embed.add_field(
-#         name="support", value="Join The Support Server Of The Bot", inline=False
-#     )
-#     embed.add_field(name="ping", value="Ping Of The Bot", inline=False)
-#     embed.set_footer(text="Requested By " + interaction.user.name)
-#     await interaction.response.send_message(embed=embed)
+# ? Help
+@bot.tree.command(description="Get list of commands!")
+async def help(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="List Of Commands",
+        description="Every Command Has A Cooldown of 30 seconds!",
+        color=0x0055FF,
+    )
+    embed.add_field(name="adfly", value="Shorten Your Link Using Adfly.", inline=False)
+    embed.add_field(
+        name="nullpointer", value="Shorten Your Link Using Nullpointer.", inline=False
+    )
+    embed.add_field(name="isgd", value="Shorten Your Link Using Isgd.", inline=False)
+    embed.add_field(name="bitly", value="Shorten Your Link Using Bitly.", inline=False)
+    embed.add_field(
+        name="chilpit", value="Shorten Your Link Using Chilpit.", inline=False
+    )
+    embed.add_field(
+        name="clckru", value="Shorten Your Link Using Clckru.", inline=False
+    )
+    embed.add_field(
+        name="cuttly", value="Shorten Your Link Using Cuttly.", inline=False
+    )
+    embed.add_field(name="dagd", value="Shorten Your Link Using Dagd.", inline=False)
+    embed.add_field(name="osdb", value="Shorten Your Link Using Osdb.", inline=False)
+    embed.add_field(
+        name="shortcm", value="Shorten Your Link Using Shortcm.", inline=False
+    )
+    embed.add_field(
+        name="tinyurl", value="Shorten Your Link Using Tinyurl.", inline=False
+    )
+    embed.add_field(name="exeio", value="Shorten Your Link Using Exeio.", inline=False)
+    embed.add_field(
+        name="rebrandly", value="Shorten Your Link Using Rebrandly.", inline=False
+    )
+    embed.add_field(
+        name="gplinks", value="Shorten Your Link Using Gplinks.", inline=False
+    )
+    embed.add_field(name="zagl", value="Shorten Your Link Using Zagl.", inline=False)
+    embed.add_field(
+        name="shortest", value="Shorten Your Link Using Shortest.", inline=False
+    )
+    embed.add_field(
+        name="earn4clicks", value="Shorten Your Link Using Earn4clicks.", inline=False
+    )
+    embed.add_field(name="vurl", value="Shorten Your Link Using Vurl.", inline=False)
+    embed.add_field(
+        name="firebase",
+        value="Shorten Your Link Using Shorty's Firebase.",
+        inline=False,
+    )
+    embed.add_field(name="invite", value="Invite The Bot To Your Server", inline=False)
+    embed.add_field(
+        name="suggest",
+        value="Send A Suggestion To The Developer Of The Bot",
+        inline=False,
+    )
+    embed.add_field(
+        name="support", value="Join The Support Server Of The Bot", inline=False
+    )
+    embed.add_field(name="ping", value="Ping Of The Bot", inline=False)
+    embed.set_footer(text="Requested By " + interaction.user.name)
+    await interaction.response.send_message(embed=embed)
 
 # ? Buy Premium
 @bot.tree.command(description="Buy shorty premium!")
