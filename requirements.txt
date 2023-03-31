@@ -5,7 +5,4 @@ sentry_sdk
 django
 jishaku
 python-dotenv
-flask
-gunicorn
 py-fdl
-discord-better-help
