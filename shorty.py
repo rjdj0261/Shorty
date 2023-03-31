@@ -219,7 +219,7 @@ class Commands(commands.Cog):
 
     # ? Command Error Handler
     @commands.Cog.listener()
-    async def on_command_error(self, ctx : discord.Context, error: commands.CommandError):
+    async def on_command_error(self, ctx : commands.Context, error: commands.CommandError):
         if isinstance(error, commands.CommandNotFound):
             return  # Return because we don't want to show an error for every command not found
         elif isinstance(error, commands.CommandOnCooldown):
@@ -238,7 +238,7 @@ class Commands(commands.Cog):
     # ? Adfly
     @commands.hybrid_command(description="Shorten your link using adfly!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def adfly(self, ctx : discord.Context, link: str):
+    async def adfly(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.discord.Embed(
@@ -252,7 +252,7 @@ class Commands(commands.Cog):
     # ? Firebase
     @commands.hybrid_command(description="Shorten your link using firebase!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def firebase(self, ctx : discord.Context, link: str):
+    async def firebase(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             options = {"link": link, "apn": "com.example.android", "ibi": "com.example.ios"}
@@ -270,7 +270,7 @@ class Commands(commands.Cog):
     # ? Nullpointer
     @commands.hybrid_command(description="Shorten your link using nullpointer!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def nullpointer(self, ctx : discord.Context, link: str):
+    async def nullpointer(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -284,7 +284,7 @@ class Commands(commands.Cog):
     # ? Exeio
     @commands.hybrid_command(description="Shorten your link using exeio!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def exeio(self, ctx : discord.Context, link: str):
+    async def exeio(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -298,7 +298,7 @@ class Commands(commands.Cog):
     # ? Vurl
     @commands.hybrid_command(description="Shorten your link using vurl!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def vurl(self, ctx : discord.Context, link: str):
+    async def vurl(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -312,7 +312,7 @@ class Commands(commands.Cog):
     # ? Rebrandly
     @commands.hybrid_command(description="Shorten your link using rebrandly!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def rebrandly(self, ctx : discord.Context, link: str):
+    async def rebrandly(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -326,7 +326,7 @@ class Commands(commands.Cog):
     # ? Shortest
     @commands.hybrid_command(description="Shorten your link using shortest!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def shortest(self, ctx : discord.Context, link: str):
+    async def shortest(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -340,7 +340,7 @@ class Commands(commands.Cog):
     # ? Earn4clicks
     @commands.hybrid_command(description="Shorten your link using earn4clicks!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def earn4clicks(self, ctx : discord.Context, link: str):
+    async def earn4clicks(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -354,7 +354,7 @@ class Commands(commands.Cog):
     # ? Gplinks
     @commands.hybrid_command(description="Shorten your link using gplinks!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def gplinks(self, ctx : discord.Context, link: str):
+    async def gplinks(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -368,7 +368,7 @@ class Commands(commands.Cog):
     # ? Zagl
     @commands.hybrid_command(description="Shorten your link using zagl!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def zagl(self, ctx : discord.Context, link: str):
+    async def zagl(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -382,7 +382,7 @@ class Commands(commands.Cog):
     # ? Isgd
     @commands.hybrid_command(description="Shorten your link using isgd!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def isgd(self, ctx : discord.Context, link: str):
+    async def isgd(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -396,7 +396,7 @@ class Commands(commands.Cog):
     # ? Bitly
     @commands.hybrid_command(description="Shorten your link using bitly!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def bitly(self, ctx : discord.Context, link: str):
+    async def bitly(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -410,7 +410,7 @@ class Commands(commands.Cog):
     # ? Chilpit
     @commands.hybrid_command(description="Shorten your link using chilpit!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def chilpit(self, ctx : discord.Context, link: str):
+    async def chilpit(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -424,7 +424,7 @@ class Commands(commands.Cog):
     # ? Clckru
     @commands.hybrid_command(description="Shorten your link using clckru!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def clckru(self, ctx : discord.Context, link: str):
+    async def clckru(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -438,7 +438,7 @@ class Commands(commands.Cog):
     # ? Cuttly
     @commands.hybrid_command(description="Shorten your link using cuttly!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def cuttly(self, ctx : discord.Context, link: str):
+    async def cuttly(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -452,7 +452,7 @@ class Commands(commands.Cog):
     # ? Dagd
     @commands.hybrid_command(description="Shorten your link using dagd!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def dagd(self, ctx : discord.Context, link: str):
+    async def dagd(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -466,7 +466,7 @@ class Commands(commands.Cog):
     # ? Osdb
     @commands.hybrid_command(description="Shorten your link using osdb!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def osdb(self, ctx : discord.Context, link: str):
+    async def osdb(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -480,7 +480,7 @@ class Commands(commands.Cog):
     # ? Shortcm
     @commands.hybrid_command(description="Shorten your link using shortcm!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def shortcm(self, ctx : discord.Context, link: str):
+    async def shortcm(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -494,7 +494,7 @@ class Commands(commands.Cog):
     # ? Tinyurl
     @commands.hybrid_command(description="Shorten your link using tinyurl!")
     @discord.app_commands.describe(link="Link you want to shorten!")
-    async def tinyurl(self, ctx : discord.Context, link: str):
+    async def tinyurl(self, ctx : commands.Context, link: str):
         try:
             shorty.urlvalidator(link)
             embed = discord.Embed(
@@ -508,7 +508,7 @@ class Commands(commands.Cog):
     # ? Guildlist (Owner Only)
     @commands.hybrid_command(description="Get list of servers shorty is in!")
     @commands.bot_has_permissions(attach_files=True)
-    async def guildlist(self, ctx : discord.Context):
+    async def guildlist(self, ctx : commands.Context):
         check = await shorty.is_owner(ctx.author)
         if check:
             with open("guildlist.csv", "w") as guild_list:
@@ -527,7 +527,7 @@ class Commands(commands.Cog):
 
     # ? Invite
     @commands.hybrid_command(description="Invite shorty to your server!")
-    async def invite(self, ctx : discord.Context):
+    async def invite(self, ctx : commands.Context):
         embed = discord.Embed(
             title="Invite The Bot",
             description=f"[https://dsc.gg/shorty](https://dsc.gg/shorty)",
@@ -538,7 +538,7 @@ class Commands(commands.Cog):
 
     # ? Support
     @commands.hybrid_command(description="Join shorty's support server!")
-    async def support(self, ctx : discord.Context):
+    async def support(self, ctx : commands.Context):
         embed = discord.Embed(
             title="Join The Support Server",
             description=f"[https://dsc.gg/shorty-support](https://dsc.gg/shorty-support)",
@@ -549,7 +549,7 @@ class Commands(commands.Cog):
 
     # ? Ping
     @commands.hybrid_command(description="Join shorty's support server!")
-    async def ping(self, ctx : discord.Context):
+    async def ping(self, ctx : commands.Context):
         embed = (
             discord.Embed(color=0x0055FF)
             .add_field(name="Ping", value=shorty.latency, inline=False)
@@ -561,7 +561,7 @@ class Commands(commands.Cog):
     # ? Suggest
     @commands.hybrid_command(description="Give us your valuable suggestions!")
     @discord.app_commands.describe(suggestion="Suggestion you would like to give!")
-    async def suggest(self, ctx : discord.Context, suggestion: str):
+    async def suggest(self, ctx : commands.Context, suggestion: str):
         embed = discord.Embed(title=suggestion, color=0x0055FF).set_author(
             name=ctx.author.name
         )
@@ -570,7 +570,7 @@ class Commands(commands.Cog):
 
     # ? Help
     @commands.hybrid_command(description="Get list of commands!")
-    async def help(self, ctx : discord.Context):
+    async def help(self, ctx : commands.Context):
         embed = discord.Embed(
             title="List Of Commands",
             description="Every Command Has A Cooldown of 30 seconds!",
@@ -630,7 +630,7 @@ class Commands(commands.Cog):
 
     # ? Sync
     @commands.hybrid_command()
-    async def sync(self, ctx : discord.Context):
+    async def sync(self, ctx : commands.Context):
         check = await shorty.is_owner(ctx.author)
         if check:
             await shorty.tree.sync()
