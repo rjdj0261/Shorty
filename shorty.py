@@ -12,7 +12,6 @@ import pyshorteners
 from firebase_dynamic_links import dynamic_link_builder as dlb
 import requests
 from json import dumps, loads
-from aioredis import from_url
 from dotenv import load_dotenv
 from asyncio import run
 
@@ -33,7 +32,6 @@ class Shorty(commands.AutoShardedBot):
         adfly_uid = environ.get("ADFLY_UID")
         firebase_key = environ.get("FIREBASE_KEY")
         prefix = environ.get("PREFIX")
-        redis_url = environ.get("REDIS_URL")
         application_id = environ.get("APPLICATION_ID")
         shard_id = environ.get("SHARD_ID")
 
@@ -138,72 +136,6 @@ class Shorty(commands.AutoShardedBot):
                 else:
                     return "AN ERROR OCCURED"
 
-    class Premium_Manager:
-        """A class that manages premium users"""
-        def __init__(self, redis) -> None:
-            self.redis = redis
-        async def premium_list_update(self, premium_list : list):
-            """Updates premium list after changes
-
-            Args:
-                premium_list (list): list of premium ids
-            """
-            premium_str = ""
-            for i in premium_list:
-                premium_str += (i + " ")
-            await self.redis.set("premium", premium_str)
-
-        async def premium_list_gen(self):
-            """Generates Premium List and returns it.
-
-            Returns:
-                premium_list: list containing premium ids
-            """
-            premium_str = await self.redis.get("premium")
-            premium_list = premium_str.split(" ")
-            return premium_list
-
-        async def premium_check(self, id : int):
-            """Checks if user is premium
-
-            Args:
-                id (int): User id
-
-            Returns:
-                bool : True if premium user and False if not
-            """
-            premium_list = await self.premium_list_gen()
-            if str(id) in premium_list:
-                return True
-            else: return False
-
-        async def add_user(self, id : int):
-            """Gives User Premium
-
-            Args:
-                id (int): User id
-            """
-            check = await self.premium_check(id)
-            premium_list = await self.premium_list_gen()
-            if check:
-                pass
-            else:
-                premium_list.append(str(id))
-            await self.premium_list_update(premium_list)
-
-        async def rm_user(self, id : int):
-            """Removes User Premium
-
-            Args:
-                id (int): User id
-            """
-            check = await self.premium_check(id)
-            premium_list = await self.premium_list_gen()
-            if check:
-                premium_list.remove(str(id))
-            else: pass
-            await self.premium_list_update(premium_list)
-
     def get_size(bytes, suffix="B"):
         """
             Scale bytes to its proper format
@@ -218,9 +150,7 @@ class Shorty(commands.AutoShardedBot):
             bytes /= factor
 
     def __init__(self) -> None:
-        self.redis = from_url(self.settings.redis_url)
         self.settings = self.Settings()
-        self.premium_manager = self.Premium_Manager(self.redis)
         self.command_prefix=self.settings.prefix,
         self.intents_settings=discord.Intents.default()
         self.intents_settings.message_content = True,
@@ -695,88 +625,8 @@ class Commands(commands.Cog):
             name="support", value="Join The Support Server Of The Bot", inline=False
         )
         embed.add_field(name="ping", value="Ping Of The Bot", inline=False)
-        embed.add_field(name="check_premium", value="Check If Someone Has Premium", inline=False)
-        embed.add_field(name="give_premium", value="Give Someone Premium (Owner Only)", inline=False)
-        embed.add_field(name="remove_premium", value="Remove Someone's Premium (Owner Only)", inline=False)
-        embed.add_field(name="premiumlist", value="Get A List Of Users Having Premium (Owner Only)", inline=False)
         embed.set_footer(text="Requested By " + ctx.author.name)
         await ctx.send(embed=embed)
-
-    # ? Buy Premium
-    @commands.hybrid_command(description="Buy shorty premium!")
-    async def buy_premium(self, ctx : discord.Context):
-        embed = (
-            discord.Embed(color=0x0055FF)
-            .add_field(name="Want to buy premium?", value="Join https://dsc.gg/shorty-support and create a ticket!", inline=False)
-            .set_footer(text="Requested By " + ctx.author.name)
-        )
-        await ctx.send(embed=embed)
-
-    # ? Premium Check
-    @commands.hybrid_command(description="Check if someone has premium!")
-    async def check_premium(self, ctx : discord.Context, user : discord.User = None):
-        if user is None:
-            user = ctx.author
-        else: pass
-        check = await shorty.premium_manager.premium_check(user.id)
-        if check:
-            result = "You have premium!"
-        else:
-            result = "You don't have premium!"
-        embed = (
-            discord.Embed(color=0x0055FF)
-            .add_field(name="Premium Check", value=result, inline=False)
-            .set_footer(text="Requested By " + ctx.author.name)
-        )
-        await ctx.send(embed=embed)
-
-    # ? Give Premium
-    @commands.hybrid_command(description="Give someone premium! [OWNER ONLY]")
-    async def give_premium(self, ctx : discord.Context, user : discord.User):
-        check = await shorty.is_owner(ctx.author)
-        if check:
-            await shorty.premium_manager.add_user(user.id)
-            embed = (
-                discord.Embed(color=0x0055FF)
-                .add_field(name="Give Premium!", value="Premium was provided to the user!", inline=False)
-                .set_footer(text="Requested By " + ctx.author.name)
-            )
-            await ctx.send(embed=embed)
-        else: await ctx.send("You need to be the owner of shorty to run this command!")
-
-    # ? Remove Premium (Owner Only) 
-    @commands.hybrid_command(description="Remove someone's premium! [OWNER ONLY]")
-    async def remove_premium(self, ctx : discord.Context, user : discord.User):
-        check = await shorty.is_owner(ctx.author)
-        if check:
-            await shorty.premium_manager.rm_user(user.id)
-            embed = (
-                discord.Embed(color=0x0055FF)
-                .add_field(name="Remove Premium!", value="Premium was removed for the user!", inline=False)
-                .set_footer(text="Requested By " + ctx.author.name)
-            )
-            await ctx.send(embed=embed)
-        else: await ctx.send("You need to be the owner of shorty to run this command!")
-
-    # ? Premium list (Owner Only)
-    @commands.hybrid_command(description="Get list of all premium users! [OWNER ONLY]")
-    @commands.bot_has_permissions(attach_files=True)
-    async def premiumlist(self, ctx : discord.Context):
-        check = await shorty.is_owner(ctx.author)
-        if check:
-            with open("premiumlist.csv", "w") as guild_list:
-                premium_list = await shorty.premium_manager.premium_list_gen()
-                guild_list.write("Userame, Discriminator, IDs\n")
-                for id in premium_list:
-                    user = shorty.fetch_user(id)
-                    guild_list.write(
-                        f'{user.name},"{user.discriminator}",{id}\n'
-                    )
-            await ctx.send(file=discord.File("premiumlist.csv"))
-        else:
-            await ctx.send(
-                "You need to be the owner of the bot to run this command!"
-            )
 
     # ? Sync
     @commands.hybrid_command()
