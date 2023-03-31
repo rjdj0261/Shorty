@@ -14,14 +14,27 @@ import requests
 from json import dumps, loads
 from dotenv import load_dotenv
 from asyncio import run
+from os import environ
 
 load_dotenv()
+
+def get_size(bytes, suffix="B"):
+    """
+        Scale bytes to its proper format
+        e.g:
+            1253656 => '1.20MB'
+            1253656678 => '1.17GB'
+    """
+    factor = 1024
+    for unit in ["", "K", "M", "G", "T", "P"]:
+        if bytes < factor:
+            return f"{bytes:.2f}{unit}{suffix}"
+        bytes /= factor
 
 # ? Bot class
 class Shorty(commands.AutoShardedBot):
     class Settings:
         """A class that manages all settings from .env file"""
-        from os import environ
         token = environ.get("TOKEN")
         sentry = environ.get("SENTRY")
         log_file = environ.get("LOG_FILE")
@@ -136,30 +149,11 @@ class Shorty(commands.AutoShardedBot):
                 else:
                     return "AN ERROR OCCURED"
 
-    def get_size(bytes, suffix="B"):
-        """
-            Scale bytes to its proper format
-            e.g:
-                1253656 => '1.20MB'
-                1253656678 => '1.17GB'
-        """
-        factor = 1024
-        for unit in ["", "K", "M", "G", "T", "P"]:
-            if bytes < factor:
-                return f"{bytes:.2f}{unit}{suffix}"
-            bytes /= factor
-
-    def __init__(self) -> None:
+    def __init__(self, intents: discord.Intents, prefix: str, help_command=None) -> None:
+        super().__init__(intents=intents, command_prefix=prefix, help_command=help_command)
         self.settings = self.Settings()
-        self.command_prefix=self.settings.prefix,
-        self.intents_settings=discord.Intents.default()
-        self.intents_settings.message_content = True,
-        self.intents=self.intents_settings
-        self.help_command=None,
         self.activity=discord.Activity(type=discord.ActivityType.watching, name=f"/help")
         self.status=discord.Status.online
-        self.application_id=self.settings.application_id
-        self.command_prefix=self.settings.prefix
         self.shard_id=self.settings.shard_id
         self.urlvalidator = URLValidator()
         self.shortner = self.Shortners(self.settings)
@@ -210,9 +204,9 @@ class Commands(commands.Cog):
         print("=" * 40, "Memory Information", "=" * 40)
         # get the memory details
         svmem = virtual_memory()
-        print(f"Total: {self.shorty.get_size(svmem.total)}")
-        print(f"Available: {self.shorty.get_size(svmem.available)}")
-        print(f"Used: {self.shorty.get_size(svmem.used)}")
+        print(f"Total: {get_size(svmem.total)}")
+        print(f"Available: {get_size(svmem.available)}")
+        print(f"Used: {get_size(svmem.used)}")
         print(f"Percentage: {svmem.percent}%")
         print("=" * 40, "Logs", "=" * 40)
         logger.warning("We have logged in as {0.user}".format(shorty))
@@ -629,19 +623,18 @@ class Commands(commands.Cog):
         await ctx.send(embed=embed)
 
     # ? Sync
-    @commands.hybrid_command()
+    @commands.hybrid_command(description="Sync Command Updates.")
     async def sync(self, ctx : commands.Context):
         check = await shorty.is_owner(ctx.author)
         if check:
             await shorty.tree.sync()
         else: await ctx.send("You need to be the owner of shorty to run this command!")
 
-    @commands.hybrid_command(name="ping")
-    async def ping_command(self, ctx: commands.Context) -> None:
-        await ctx.send("Hello!")
-
 # ? Bot Init
-shorty = Shorty()
+intents = discord.Intents.default()
+intents.message_content = True
+prefix = environ.get("PREFIX")
+shorty = Shorty(intents=intents, prefix=prefix)
 
 # ? Initiate Sentry
 sentry_init(
@@ -673,8 +666,9 @@ f_handler.setFormatter(f_format)
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
-async def start():
+async def load():
     await shorty.add_cog(Commands(shorty))
-    shorty.run(shorty.settings.token)
+    await shorty.load_extension('jishaku')
 
-run(start())
+run(load())
+shorty.run(shorty.settings.token)
