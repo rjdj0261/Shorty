@@ -7,7 +7,7 @@ import logging
 import platform
 from datetime import datetime
 from django.core.exceptions import ValidationError
-from django.core.validators import urlvalidator
+from django.core.validators import URLvalidator
 import pyshorteners
 from firebase_dynamic_links import dynamic_link_builder as dlb
 import requests
@@ -231,7 +231,7 @@ class Shorty(commands.AutoShardedBot):
         self.application_id=self.settings.application_id
         self.command_prefix=self.settings.prefix
         self.shard_id=self.settings.shard_id
-        self.urlvalidator = urlvalidator()
+        self.urlvalidator = URLvalidator()
         self.shortner = self.Shortners(self.settings)
         self.uname = platform.uname()
         self.boot_time_timestamp = boot_time()
