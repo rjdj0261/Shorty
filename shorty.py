@@ -1,158 +1,129 @@
 import discord
-import sentry_sdk
+from sentry_sdk import init as sentry_init
 from discord.ext import commands
-import psutil
+from psutil import boot_time, cpu_count, cpu_freq, cpu_percent, virtual_memory
 import logging
 import platform
-import datetime
+from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 import pyshorteners
-from firebase_dynamic_links import dynamic_link_builder
+from firebase_dynamic_links import dynamic_link_builder as dlb
 import requests
-import json
-import os
-import aioredis
+from json import dumps, loads
+from aioredis import from_url
+from dotenv import load_dotenv
+from better_help import Help
 
-token = os.environ.get("TOKEN")
-sentry = os.environ.get("SENTRY")
-log_file = os.environ.get("LOG_FILE")
-bitly_key = os.environ.get("BITLY_KEY")
-cuttly_key = os.environ.get("CUTTLY_KEY")
-shortcm_key = os.environ.get("SHORTCM_KEY")
-adfly_key = os.environ.get("ADFLY_KEY")
-adfly_uid = os.environ.get("ADFLY_UID")
-firebase_key = os.environ.get("FIREBASE_KEY")
-prefix = os.environ.get("PREFIX")
-redis_url = os.environ.get("REDIS_URL")
-application_id = os.environ.get("APPLICATION_ID")
-shard_id = os.environ.get("SHARD_ID")
-owner = os.environ.get("OWNER_ID")
+load_dotenv()
 
-# ? Redis Init
-redis = aioredis.from_url(redis_url)
+class Settings():
+    """A class that manages all settings from .env file"""
+    from os import environ
+    token = environ.get("TOKEN")
+    sentry = environ.get("SENTRY")
+    log_file = environ.get("LOG_FILE")
+    bitly_key = environ.get("BITLY_KEY")
+    cuttly_key = environ.get("CUTTLY_KEY")
+    shortcm_key = environ.get("SHORTCM_KEY")
+    adfly_key = environ.get("ADFLY_KEY")
+    adfly_uid = environ.get("ADFLY_UID")
+    firebase_key = environ.get("FIREBASE_KEY")
+    prefix = environ.get("PREFIX")
+    redis_url = environ.get("REDIS_URL")
+    application_id = environ.get("APPLICATION_ID")
+    shard_id = environ.get("SHARD_ID")
 
-# ? Bot Init
-intents = discord.Intents.default()
-intents.message_content = True
-bot = discord.AutoShardedClient(
-    shard_id=shard_id,
-    command_prefix=prefix,
-    intents=intents,
-    help_command=None,
-    application_id=application_id,
-    status=discord.Status.online,
-    activity=discord.Activity(type=discord.ActivityType.watching, name=f"/help"),
-)
-tree = discord.app_commands.CommandTree(bot)
+class Premium_Manager():
+    """A class that manages premium users"""
+    async def premium_list_update(self, premium_list : list):
+        """Updates premium list after changes
 
-# ? Initiate Sentry
-sentry_sdk.init(
-    dsn=sentry,
-    traces_sample_rate=1.0,
-    release="shorty@1.0.0",
-    sample_rate=0.25,
-    _experiments={"profiles_sample_rate": 1.0},
-    environment="staging",
-    max_breadcrumbs=50,
-)
+        Args:
+            premium_list (list): list of premium ids
+        """
+        premium_str = ""
+        for i in premium_list:
+            premium_str += (i + " ")
+        await redis.set("premium", premium_str)
 
-# ? Initate URLValidator
-urlvalidator = URLValidator()
+    async def premium_list_gen(self):
+        """Generates Premium List and returns it.
 
-# ? Initiate Logger
-logger = logging.getLogger(__name__)
+        Returns:
+            premium_list: list containing premium ids
+        """
+        premium_str = await redis.get("premium")
+        premium_list = premium_str.split(" ")
+        return premium_list
 
-# ? Create handlers
-c_handler = logging.StreamHandler()
-f_handler = logging.FileHandler(log_file)
-c_handler.setLevel(logging.WARNING)
-f_handler.setLevel(logging.ERROR)
+    async def premium_check(self, id : int):
+        """Checks if user is premium
 
-# ? Create formatters and add it to handlers
-c_format = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
-f_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-c_handler.setFormatter(c_format)
-f_handler.setFormatter(f_format)
+        Args:
+            id (int): User id
 
-# ? Add handlers to the logger
-logger.addHandler(c_handler)
-logger.addHandler(f_handler)
+        Returns:
+            bool : True if premium user and False if not
+        """
+        premium_list = await self.premium_list_gen()
+        if str(id) in premium_list:
+            return True
+        else: return False
 
-async def premium_list_update(premium_list : list):
-    premium_str = ""
-    for i in premium_list:
-        premium_str += i
-        premium_str += " "
-    await redis.set("premium", premium_str)
+    async def add_user(self, id : int):
+        """Gives User Premium
 
-async def premium_list_gen():
-    premium_str = await redis.get("premium")
-    premium_list = premium_str.split(" ")
-    return premium_list
+        Args:
+            id (int): User id
+        """
+        check = await self.premium_check(id)
+        premium_list = await self.premium_list_gen()
+        if check:
+            pass
+        else:
+            premium_list.append(str(id))
+        await self.premium_list_update(premium_list)
 
-async def premium_check(id : int):
-    premium_list = await premium_list_gen()
-    if str(id) in premium_list:
-        return True
-    else: return False
+    async def rm_user(self, id : int):
+        """Removes User Premium
 
-async def add_user(id : int):
-    check = await premium_check(id)
-    premium_list = await premium_list_gen()
-    if check:
-        pass
-    else:
-        premium_list.append(str(id))
-    await premium_list_update(premium_list)
+        Args:
+            id (int): User id
+        """
+        check = await self.premium_check(id)
+        premium_list = await self.premium_list_gen()
+        if check:
+            premium_list.remove(str(id))
+        else: pass
+        await self.premium_list_update(premium_list)
 
-async def rm_user(id : int):
-    check = await premium_check(id)
-    premium_list = await premium_list_gen()
-    if check:
-        premium_list.remove(str(id))
-    else: pass
-    await premium_list_update(premium_list)
-
-"""
-    Scale bytes to its proper format
-    e.g:
-        1253656 => '1.20MB'
-        1253656678 => '1.17GB'
-    """
-def get_size(bytes, suffix="B"):
-    factor = 1024
-    for unit in ["", "K", "M", "G", "T", "P"]:
-        if bytes < factor:
-            return f"{bytes:.2f}{unit}{suffix}"
-        bytes /= factor
-
-
-# ? Shorteners
-class shortners:
+class Shortners:
+    """Link Shortner Class"""
     def __init__(self):
         self.isgd = pyshorteners.Shortener().isgd
         self.nullpointer = pyshorteners.Shortener(domain="https://0x0.st").nullpointer
-        self.bitly = pyshorteners.Shortener(api_key=bitly_key).bitly
+        self.bitly = pyshorteners.Shortener(api_key=settings.bitly_key).bitly
         self.chilpit = pyshorteners.Shortener().chilpit
         self.clckru = pyshorteners.Shortener().clckru
-        self.cuttly = pyshorteners.Shortener(api_key=cuttly_key).cuttly
+        self.cuttly = pyshorteners.Shortener(api_key=settings.cuttly_key).cuttly
         self.dagd = pyshorteners.Shortener().dagd
         self.osdb = pyshorteners.Shortener().osdb
         self.shortcm = pyshorteners.Shortener(
-            api_key=shortcm_key, domain="3adu.short.gy"
+            api_key=settings.shortcm_key, domain="3adu.short.gy"
         ).shortcm
         self.tinyurl = pyshorteners.Shortener().tinyurl
         self.adfly = pyshorteners.Shortener(
-            api_key=adfly_key,
-            user_id=adfly_uid,
+            api_key=settings.adfly_key,
+            user_id=settings.adfly_uid,
             domain="test.us",
             group_id=12,
             type="int",
         )
-        self.firebase = dynamic_link_builder(api_key=firebase_key)
+        self.firebase = dlb(api_key=settings.firebase_key)
 
     def req(self, api, link):
+        """Shortener Request Method"""
         if api == "exeio":
             try:
                 req = requests.get(
@@ -193,7 +164,7 @@ class shortners:
                 return "AN ERROR OCCURED"
         elif api == "shortest":
             try:
-                req = json.loads(
+                req = loads(
                     requests.put(
                         "https://api.shorte.st/v1/data/url",
                         {"urlToShorten": link},
@@ -219,7 +190,7 @@ class shortners:
             }
             req = requests.post(
                 "https://api.rebrandly.com/v1/links",
-                data=json.dumps(linkRequest),
+                data=dumps(linkRequest),
                 headers=requestHeaders,
             )
             if req.status_code == requests.codes.ok:
@@ -228,15 +199,81 @@ class shortners:
             else:
                 return "AN ERROR OCCURED"
 
+def get_size(bytes, suffix="B"):
+    """
+        Scale bytes to its proper format
+        e.g:
+            1253656 => '1.20MB'
+            1253656678 => '1.17GB'
+    """
+    factor = 1024
+    for unit in ["", "K", "M", "G", "T", "P"]:
+        if bytes < factor:
+            return f"{bytes:.2f}{unit}{suffix}"
+        bytes /= factor
+
+# ? Premium Manager Init
+premium_manager = Premium_Manager()
+
+# ? Settings Init
+settings = Settings()
+
+# ? Redis Init
+redis = from_url(settings.redis_url)
+
+# ? Bot Init
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.AutoShardedBot(
+    shard_id=settings.shard_id,
+    command_prefix=settings.prefix,
+    intents=intents,
+    help_command=Help(),
+    application_id=settings.application_id,
+    status=discord.StaHes.online,
+    activity=discord.Activity(type=discord.ActivityType.watching, name=f"/help"),
+)
+
+# ? Initiate Sentry
+sentry_init(
+    dsn=settings.sentry,
+    traces_sample_rate=1.0,
+    release="shorty@1.0.0",
+    sample_rate=0.25,
+    _experiments={"profiles_sample_rate": 1.0},
+    environment="staging",
+    max_breadcrumbs=50,
+)
+
+# ? Initate URLValidator
+urlvalidator = URLValidator()
+
+# ? Initiate Logger
+logger = logging.getLogger(__name__)
+
+# ? Create handlers
+c_handler = logging.StreamHandler()
+f_handler = logging.FileHandler(settings.log_file)
+c_handler.setLevel(logging.WARNING)
+f_handler.setLevel(logging.ERROR)
+
+# ? Create formatters and add it to handlers
+c_format = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+f_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+c_handler.setFormatter(c_format)
+f_handler.setFormatter(f_format)
+
+# ? Add handlers to the logger
+logger.addHandler(c_handler)
+logger.addHandler(f_handler)
 
 # ? Initiate Shorteners
-shortner = shortners()
-
+shortner = Shortners()
 
 # ? On Ready Event
 @bot.event
 async def on_ready():
-    await tree.sync()
+    await bot.tree.sync()
     print(
         """
                         _______           _______  _______ _________         
@@ -259,26 +296,26 @@ async def on_ready():
     # 52
     # Boot Time
     print("=" * 40, "Boot Time", "=" * 40)
-    boot_time_timestamp = psutil.boot_time()
-    bt = datetime.datetime.fromtimestamp(boot_time_timestamp)
+    boot_time_timestamp = boot_time()
+    bt = datetime.fromtimestamp(boot_time_timestamp)
     print(f"Boot Time: {bt.year}/{bt.month}/{bt.day} {bt.hour}:{bt.minute}:{bt.second}")
 
     # let's print CPU information
     print("=" * 40, "CPU Info", "=" * 40)
     # number of cores
-    print("Physical cores:", psutil.cpu_count(logical=False))
-    print("Total cores:", psutil.cpu_count(logical=True))
+    print("Physical cores:", cpu_count(logical=False))
+    print("Total cores:", cpu_count(logical=True))
     # CPU frequencies
-    cpufreq = psutil.cpu_freq()
+    cpufreq = cpu_freq()
     print(f"Max Frequency: {cpufreq.max:.2f}Mhz")
     print(f"Min Frequency: {cpufreq.min:.2f}Mhz")
     print(f"Current Frequency: {cpufreq.current:.2f}Mhz")
-    print(f"Total CPU Usage: {psutil.cpu_percent()}%")
+    print(f"Total CPU Usage: {cpu_percent()}%")
 
     # Memory Information
     print("=" * 40, "Memory Information", "=" * 40)
     # get the memory details
-    svmem = psutil.virtual_memory()
+    svmem = virtual_memory()
     print(f"Total: {get_size(svmem.total)}")
     print(f"Available: {get_size(svmem.available)}")
     print(f"Used: {get_size(svmem.used)}")
@@ -309,7 +346,7 @@ async def on_command_error(
 
 
 # ? Adfly
-@tree.command(description="Shorten your link using adfly!")
+@bot.tree.command(description="Shorten your link using adfly!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def adfly(interaction: discord.Interaction, link: str):
     try:
@@ -323,7 +360,7 @@ async def adfly(interaction: discord.Interaction, link: str):
 
 
 # ? Firebase
-@tree.command(description="Shorten your link using firebase!")
+@bot.tree.command(description="Shorten your link using firebase!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def firebase(interaction: discord.Interaction, link: str):
     try:
@@ -341,7 +378,7 @@ async def firebase(interaction: discord.Interaction, link: str):
 
 
 # ? Nullpointer
-@tree.command(description="Shorten your link using nullpointer!")
+@bot.tree.command(description="Shorten your link using nullpointer!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def nullpointer(interaction: discord.Interaction, link: str):
     try:
@@ -355,7 +392,7 @@ async def nullpointer(interaction: discord.Interaction, link: str):
 
 
 # ? Exeio
-@tree.command(description="Shorten your link using exeio!")
+@bot.tree.command(description="Shorten your link using exeio!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def exeio(interaction: discord.Interaction, link: str):
     try:
@@ -369,7 +406,7 @@ async def exeio(interaction: discord.Interaction, link: str):
 
 
 # ? Vurl
-@tree.command(description="Shorten your link using vurl!")
+@bot.tree.command(description="Shorten your link using vurl!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def vurl(interaction: discord.Interaction, link: str):
     try:
@@ -383,7 +420,7 @@ async def vurl(interaction: discord.Interaction, link: str):
 
 
 # ? Rebrandly
-@tree.command(description="Shorten your link using rebrandly!")
+@bot.tree.command(description="Shorten your link using rebrandly!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def rebrandly(interaction: discord.Interaction, link: str):
     try:
@@ -397,7 +434,7 @@ async def rebrandly(interaction: discord.Interaction, link: str):
 
 
 # ? Shortest
-@tree.command(description="Shorten your link using shortest!")
+@bot.tree.command(description="Shorten your link using shortest!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def shortest(interaction: discord.Interaction, link: str):
     try:
@@ -411,7 +448,7 @@ async def shortest(interaction: discord.Interaction, link: str):
 
 
 # ? Earn4clicks
-@tree.command(description="Shorten your link using earn4clicks!")
+@bot.tree.command(description="Shorten your link using earn4clicks!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def earn4clicks(interaction: discord.Interaction, link: str):
     try:
@@ -425,7 +462,7 @@ async def earn4clicks(interaction: discord.Interaction, link: str):
 
 
 # ? Gplinks
-@tree.command(description="Shorten your link using gplinks!")
+@bot.tree.command(description="Shorten your link using gplinks!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def gplinks(interaction: discord.Interaction, link: str):
     try:
@@ -439,7 +476,7 @@ async def gplinks(interaction: discord.Interaction, link: str):
 
 
 # ? Zagl
-@tree.command(description="Shorten your link using zagl!")
+@bot.tree.command(description="Shorten your link using zagl!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def zagl(interaction: discord.Interaction, link: str):
     try:
@@ -453,7 +490,7 @@ async def zagl(interaction: discord.Interaction, link: str):
 
 
 # ? Isgd
-@tree.command(description="Shorten your link using isgd!")
+@bot.tree.command(description="Shorten your link using isgd!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def isgd(interaction: discord.Interaction, link: str):
     try:
@@ -467,7 +504,7 @@ async def isgd(interaction: discord.Interaction, link: str):
 
 
 # ? Bitly
-@tree.command(description="Shorten your link using bitly!")
+@bot.tree.command(description="Shorten your link using bitly!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def bitly(interaction: discord.Interaction, link: str):
     try:
@@ -481,7 +518,7 @@ async def bitly(interaction: discord.Interaction, link: str):
 
 
 # ? Chilpit
-@tree.command(description="Shorten your link using chilpit!")
+@bot.tree.command(description="Shorten your link using chilpit!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def chilpit(interaction: discord.Interaction, link: str):
     try:
@@ -495,7 +532,7 @@ async def chilpit(interaction: discord.Interaction, link: str):
 
 
 # ? Clckru
-@tree.command(description="Shorten your link using clckru!")
+@bot.tree.command(description="Shorten your link using clckru!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def clckru(interaction: discord.Interaction, link: str):
     try:
@@ -509,7 +546,7 @@ async def clckru(interaction: discord.Interaction, link: str):
 
 
 # ? Cuttly
-@tree.command(description="Shorten your link using cuttly!")
+@bot.tree.command(description="Shorten your link using cuttly!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def cuttly(interaction: discord.Interaction, link: str):
     try:
@@ -523,7 +560,7 @@ async def cuttly(interaction: discord.Interaction, link: str):
 
 
 # ? Dagd
-@tree.command(description="Shorten your link using dagd!")
+@bot.tree.command(description="Shorten your link using dagd!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def dagd(interaction: discord.Interaction, link: str):
     try:
@@ -537,7 +574,7 @@ async def dagd(interaction: discord.Interaction, link: str):
 
 
 # ? Osdb
-@tree.command(description="Shorten your link using osdb!")
+@bot.tree.command(description="Shorten your link using osdb!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def osdb(interaction: discord.Interaction, link: str):
     try:
@@ -551,7 +588,7 @@ async def osdb(interaction: discord.Interaction, link: str):
 
 
 # ? Shortcm
-@tree.command(description="Shorten your link using shortcm!")
+@bot.tree.command(description="Shorten your link using shortcm!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def shortcm(interaction: discord.Interaction, link: str):
     try:
@@ -565,7 +602,7 @@ async def shortcm(interaction: discord.Interaction, link: str):
 
 
 # ? Tinyurl
-@tree.command(description="Shorten your link using tinyurl!")
+@bot.tree.command(description="Shorten your link using tinyurl!")
 @discord.app_commands.describe(link="Link you want to shorten!")
 async def tinyurl(interaction: discord.Interaction, link: str):
     try:
@@ -579,10 +616,11 @@ async def tinyurl(interaction: discord.Interaction, link: str):
 
 
 # ? Guildlist (Owner Only)
-@tree.command(description="Get list of servers shorty is in!")
+@bot.tree.command(description="Get list of servers shorty is in!")
 @commands.bot_has_permissions(attach_files=True)
 async def guildlist(interaction: discord.Interaction):
-    if interaction.user.id == owner:
+    check = await bot.is_owner(interaction.user)
+    if check:
         with open("guildlist.csv", "w") as guild_list:
             guild_list.write("Server ID,Server Name,# of Users,Features\n")
             for guild in bot.guilds:
@@ -590,7 +628,6 @@ async def guildlist(interaction: discord.Interaction):
                 guild_list.write(
                     f'{guild.id},"{guild.name}",{guild.member_count},{guild.features}\n'
                 )
-
         await interaction.response.send_message(file=discord.File("guildlist.csv"))
     else:
         await interaction.response.send_message(
@@ -599,7 +636,7 @@ async def guildlist(interaction: discord.Interaction):
 
 
 # ? Invite
-@tree.command(description="Invite shorty to your server!")
+@bot.tree.command(description="Invite shorty to your server!")
 async def invite(interaction: discord.Interaction):
     embed = discord.Embed(
         title="Invite The Bot",
@@ -610,7 +647,7 @@ async def invite(interaction: discord.Interaction):
 
 
 # ? Support
-@tree.command(description="Join shorty's support server!")
+@bot.tree.command(description="Join shorty's support server!")
 async def support(interaction: discord.Interaction):
     embed = discord.Embed(
         title="Join The Support Server",
@@ -621,7 +658,7 @@ async def support(interaction: discord.Interaction):
 
 
 # ? Ping
-@tree.command(description="Join shorty's support server!")
+@bot.tree.command(description="Join shorty's support server!")
 async def ping(interaction: discord.Interaction):
     embed = (
         discord.Embed(color=0x0055FF)
@@ -632,7 +669,7 @@ async def ping(interaction: discord.Interaction):
 
 
 # ? Suggest
-@tree.command(description="Give us your valuable suggestions!")
+@bot.tree.command(description="Give us your valuable suggestions!")
 @discord.app_commands.describe(suggestion="Suggestion you would like to give!")
 async def suggest(interaction: discord.Interaction, suggestion: str):
     embed = discord.Embed(title=suggestion, color=0x0055FF).set_author(
@@ -641,72 +678,72 @@ async def suggest(interaction: discord.Interaction, suggestion: str):
     await bot.fetch_channel(1090758793501085696).send(embed=embed)
 
 
-# ? Help
-@tree.command(description="Get list of commands!")
-async def help(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="List Of Commands",
-        description="Every Command Has A Cooldown of 30 seconds!",
-        color=0x0055FF,
-    )
-    embed.add_field(name="adfly", value="Shorten Your Link Using Adfly.", inline=False)
-    embed.add_field(
-        name="nullpointer", value="Shorten Your Link Using Nullpointer.", inline=False
-    )
-    embed.add_field(name="isgd", value="Shorten Your Link Using Isgd.", inline=False)
-    embed.add_field(name="bitly", value="Shorten Your Link Using Bitly.", inline=False)
-    embed.add_field(
-        name="chilpit", value="Shorten Your Link Using Chilpit.", inline=False
-    )
-    embed.add_field(
-        name="clckru", value="Shorten Your Link Using Clckru.", inline=False
-    )
-    embed.add_field(
-        name="cuttly", value="Shorten Your Link Using Cuttly.", inline=False
-    )
-    embed.add_field(name="dagd", value="Shorten Your Link Using Dagd.", inline=False)
-    embed.add_field(name="osdb", value="Shorten Your Link Using Osdb.", inline=False)
-    embed.add_field(
-        name="shortcm", value="Shorten Your Link Using Shortcm.", inline=False
-    )
-    embed.add_field(
-        name="tinyurl", value="Shorten Your Link Using Tinyurl.", inline=False
-    )
-    embed.add_field(name="exeio", value="Shorten Your Link Using Exeio.", inline=False)
-    embed.add_field(
-        name="rebrandly", value="Shorten Your Link Using Rebrandly.", inline=False
-    )
-    embed.add_field(
-        name="gplinks", value="Shorten Your Link Using Gplinks.", inline=False
-    )
-    embed.add_field(name="zagl", value="Shorten Your Link Using Zagl.", inline=False)
-    embed.add_field(
-        name="shortest", value="Shorten Your Link Using Shortest.", inline=False
-    )
-    embed.add_field(
-        name="earn4clicks", value="Shorten Your Link Using Earn4clicks.", inline=False
-    )
-    embed.add_field(name="vurl", value="Shorten Your Link Using Vurl.", inline=False)
-    embed.add_field(
-        name="firebase",
-        value="Shorten Your Link Using Shorty's Firebase.",
-        inline=False,
-    )
-    embed.add_field(name="invite", value="Invite The Bot To Your Server", inline=False)
-    embed.add_field(
-        name="suggest",
-        value="Send A Suggestion To The Developer Of The Bot",
-        inline=False,
-    )
-    embed.add_field(
-        name="support", value="Join The Support Server Of The Bot", inline=False
-    )
-    embed.add_field(name="ping", value="Ping Of The Bot", inline=False)
-    embed.set_footer(text="Requested By " + interaction.user.name)
-    await interaction.response.send_message(embed=embed)
+# # ? Help
+# @bot.tree.command(description="Get list of commands!")
+# async def help(interaction: discord.Interaction):
+#     embed = discord.Embed(
+#         title="List Of Commands",
+#         description="Every Command Has A Cooldown of 30 seconds!",
+#         color=0x0055FF,
+#     )
+#     embed.add_field(name="adfly", value="Shorten Your Link Using Adfly.", inline=False)
+#     embed.add_field(
+#         name="nullpointer", value="Shorten Your Link Using Nullpointer.", inline=False
+#     )
+#     embed.add_field(name="isgd", value="Shorten Your Link Using Isgd.", inline=False)
+#     embed.add_field(name="bitly", value="Shorten Your Link Using Bitly.", inline=False)
+#     embed.add_field(
+#         name="chilpit", value="Shorten Your Link Using Chilpit.", inline=False
+#     )
+#     embed.add_field(
+#         name="clckru", value="Shorten Your Link Using Clckru.", inline=False
+#     )
+#     embed.add_field(
+#         name="cuttly", value="Shorten Your Link Using Cuttly.", inline=False
+#     )
+#     embed.add_field(name="dagd", value="Shorten Your Link Using Dagd.", inline=False)
+#     embed.add_field(name="osdb", value="Shorten Your Link Using Osdb.", inline=False)
+#     embed.add_field(
+#         name="shortcm", value="Shorten Your Link Using Shortcm.", inline=False
+#     )
+#     embed.add_field(
+#         name="tinyurl", value="Shorten Your Link Using Tinyurl.", inline=False
+#     )
+#     embed.add_field(name="exeio", value="Shorten Your Link Using Exeio.", inline=False)
+#     embed.add_field(
+#         name="rebrandly", value="Shorten Your Link Using Rebrandly.", inline=False
+#     )
+#     embed.add_field(
+#         name="gplinks", value="Shorten Your Link Using Gplinks.", inline=False
+#     )
+#     embed.add_field(name="zagl", value="Shorten Your Link Using Zagl.", inline=False)
+#     embed.add_field(
+#         name="shortest", value="Shorten Your Link Using Shortest.", inline=False
+#     )
+#     embed.add_field(
+#         name="earn4clicks", value="Shorten Your Link Using Earn4clicks.", inline=False
+#     )
+#     embed.add_field(name="vurl", value="Shorten Your Link Using Vurl.", inline=False)
+#     embed.add_field(
+#         name="firebase",
+#         value="Shorten Your Link Using Shorty's Firebase.",
+#         inline=False,
+#     )
+#     embed.add_field(name="invite", value="Invite The Bot To Your Server", inline=False)
+#     embed.add_field(
+#         name="suggest",
+#         value="Send A Suggestion To The Developer Of The Bot",
+#         inline=False,
+#     )
+#     embed.add_field(
+#         name="support", value="Join The Support Server Of The Bot", inline=False
+#     )
+#     embed.add_field(name="ping", value="Ping Of The Bot", inline=False)
+#     embed.set_footer(text="Requested By " + interaction.user.name)
+#     await interaction.response.send_message(embed=embed)
 
 # ? Buy Premium
-@tree.command(description="Buy shorty premium!")
+@bot.tree.command(description="Buy shorty premium!")
 async def buy_premium(interaction: discord.Interaction):
     embed = (
         discord.Embed(color=0x0055FF)
@@ -716,7 +753,7 @@ async def buy_premium(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # ? Premium Check
-@tree.command(description="Check if someone has premium!")
+@bot.tree.command(description="Check if someone has premium!")
 async def check_premium(interaction: discord.Interaction, user : discord.User = None):
     if user is None:
         user = interaction.user
@@ -734,10 +771,11 @@ async def check_premium(interaction: discord.Interaction, user : discord.User = 
     await interaction.response.send_message(embed=embed)
 
 # ? Give Premium
-@tree.command(description="Give someone premium! [OWNER ONLY]")
+@bot.tree.command(description="Give someone premium! [OWNER ONLY]")
 async def give_premium(interaction: discord.Interaction, user : discord.User):
-    if interaction.user.id == owner:
-        await add_user(user.id)
+    check = await bot.is_owner(interaction.user)
+    if check:
+        await premium_manager.add_user(user.id)
         embed = (
             discord.Embed(color=0x0055FF)
             .add_field(name="Give Premium!", value="Premium was provided to the user!", inline=False)
@@ -747,10 +785,11 @@ async def give_premium(interaction: discord.Interaction, user : discord.User):
     else: await interaction.response.send_message("You need to be the owner of shorty to run this command!")
 
 # ? Remove Premium
-@tree.command(description="Remove someone's premium! [OWNER ONLY]")
+@bot.tree.command(description="Remove someone's premium! [OWNER ONLY]")
 async def remove_premium(interaction: discord.Interaction, user : discord.User):
-    if interaction.user.id == owner:
-        await rm_user(user.id)
+    check = await bot.is_owner(interaction.user)
+    if check:
+        await premium_manager.rm_user(user.id)
         embed = (
             discord.Embed(color=0x0055FF)
             .add_field(name="Remove Premium!", value="Premium was removed for the user!", inline=False)
@@ -760,16 +799,16 @@ async def remove_premium(interaction: discord.Interaction, user : discord.User):
     else: await interaction.response.send_message("You need to be the owner of shorty to run this command!")
 
 # ? Premium list (Owner Only)
-@tree.command(description="Get list of all premium users! [OWNER ONLY]")
+@bot.tree.command(description="Get list of all premium users! [OWNER ONLY]")
 @commands.bot_has_permissions(attach_files=True)
 async def premiumlist(interaction: discord.Interaction):
-    if interaction.user.id == owner:
+    check = await bot.is_owner(interaction.user)
+    if check:
         with open("premiumlist.csv", "w") as guild_list:
-            premium_list = await premium_list_gen()
+            premium_list = await premium_manager.premium_list_gen()
             guild_list.write("Userame, Discriminator, IDs\n")
             for id in premium_list:
                 user = bot.fetch_user(id)
-                # Write to csv file (guild name, total member count, region and features)
                 guild_list.write(
                     f'{user.name},"{user.discriminator}",{id}\n'
                 )
@@ -779,4 +818,4 @@ async def premiumlist(interaction: discord.Interaction):
             "You need to be the owner of the bot to run this command!"
         )
 
-bot.run(token)
+bot.run(settings.token)
