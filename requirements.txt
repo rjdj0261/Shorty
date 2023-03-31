@@ -9,3 +9,4 @@ flask
 gunicorn
 py-fdl
 aioredis
+discord-better-help
