@@ -6,3 +6,4 @@ django
 jishaku
 python-dotenv
 py-fdl
+discord-pretty-help
