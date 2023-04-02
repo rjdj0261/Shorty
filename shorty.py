@@ -143,7 +143,7 @@ class Shorty(commands.AutoShardedBot):
 
     from pretty_help import PrettyHelp
 
-    def __init__(self, intents: discord.Intents, prefix: str, help_command=PrettyHelp(color=0x0055FF, ending_note="\"Requested By \" + ctx.author.name", dm_help=True, sort_commands=True)) -> None:
+    def __init__(self, intents: discord.Intents, prefix: str, help_command=PrettyHelp(color=0x0055FF, sort_commands=True)) -> None:
         super().__init__(intents=intents, command_prefix=prefix, help_command=help_command)
         from django.core.validators import URLValidator
         import platform
