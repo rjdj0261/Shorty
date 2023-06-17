@@ -172,9 +172,9 @@ class LinkShortenerCommands(commands.Cog, name="Link Shortener Commands"):
     async def adfly(self, ctx : commands.Context, link: str):
         """Shorten your links using adfly"""
         try:
-            self.self.shorty.urlvalidator(link)
+            self.shorty.urlvalidator(link)
             embed = discord.discord.Embed(
-                title=self.self.shorty.shortner.adfly.short(link), color=0x0055FF
+                title=self.shorty.shortner.adfly.short(link), color=0x0055FF
             ).set_footer(text="Requested By " + ctx.author.name)
             await ctx.send(embed=embed)
         except ValidationError:
@@ -187,10 +187,10 @@ class LinkShortenerCommands(commands.Cog, name="Link Shortener Commands"):
     async def firebase(self, ctx : commands.Context, link: str):
         """Shorten your links using firebase"""
         try:
-            self.self.shorty.urlvalidator(link)
+            self.shorty.urlvalidator(link)
             options = {"link": link, "apn": "com.example.android", "ibi": "com.example.ios"}
             embed = discord.discord.Embed(
-                title=self.self.shorty.shortner.firebase.generate_short_link(
+                title=self.shorty.shortner.firebase.generate_short_link(
                     app_code="pocketurl", **options
                 ),
                 color=0x0055FF,
